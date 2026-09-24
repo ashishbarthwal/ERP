@@ -1,0 +1,17 @@
+<% const money = (cents) => `$${(cents / 100).toFixed(2)}`; const total = purchaseOrder.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0); %>
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Purchase order</p><h1><span class="mono"><%= purchaseOrder.id.slice(0, 12) %></span></h1><p>Supplier: <a href="/suppliers/<%= purchaseOrder.supplier.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a> · Created <%= new Date(purchaseOrder.createdAt).toLocaleDateString() %></p></div><span class="status status-<%= purchaseOrder.status.toLowerCase() %>" data-testid="purchase-order-status"><%= purchaseOrder.status %></span></section>
+  <section class="stats" aria-label="Purchase order summary"><div class="stat"><span class="stat-label">Order value</span><strong class="stat-value" data-testid="purchase-order-total"><%= money(total) %></strong></div><div class="stat"><span class="stat-label">Product lines</span><strong class="stat-value"><%= purchaseOrder.items.length %></strong></div><div class="stat"><span class="stat-label">Units ordered</span><strong class="stat-value"><%= purchaseOrder.items.reduce((sum, item) => sum + item.quantity, 0) %></strong></div></section>
+  <section class="detail-grid">
+    <div class="panel"><div class="panel-heading"><div><h3>Workflow</h3><span>Draft → ordered → received</span></div></div>
+      <dl class="detail-list"><div><dt>Created</dt><dd><%= new Date(purchaseOrder.createdAt).toLocaleString() %></dd></div><div><dt>Submitted</dt><dd><%= purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleString() : 'Not submitted' %></dd></div><div><dt>Received</dt><dd><%= purchaseOrder.receivedAt ? new Date(purchaseOrder.receivedAt).toLocaleString() : 'Not received' %></dd></div></dl>
+      <div class="actions" style="margin-top:24px" data-testid="purchase-order-actions">
+        <% if (purchaseOrder.status === 'DRAFT') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/submit" method="post"><button type="submit">Submit order</button></form><% } %>
+        <% if (purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/receive" method="post"><button type="submit">Receive all stock</button></form><% } %>
+        <% if (purchaseOrder.status === 'DRAFT' || purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/cancel" method="post"><button class="button ghost" type="submit">Cancel purchase</button></form><% } %>
+        <% if (purchaseOrder.status === 'RECEIVED') { %><a class="button secondary" href="/products/<%= purchaseOrder.items[0].product.id %>">View stock ledger</a><% } %>
+      </div>
+    </div>
+    <div class="panel"><div class="panel-heading"><div><h3>Products</h3><span>Stock is added only when received</span></div></div><div class="table-wrap"><table><thead><tr><th>Product</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead><tbody><% purchaseOrder.items.forEach(function (item) { %><tr data-testid="purchase-order-item"><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a><br><small><%= item.product.sku %></small></td><td><%= item.quantity %></td><td><%= money(item.unitCostCents) %></td><td><strong><%= money(item.quantity * item.unitCostCents) %></strong></td></tr><% }) %></tbody></table></div></div>
+  </section>
+<%- include('../partials/footer') %>

@@ -1,0 +1,63 @@
+<% const money = (cents) => `$${(cents / 100).toFixed(2)}`; %>
+<%- include('partials/header') %>
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Good morning, <%= user.name.split(' ')[0] %></p>
+      <h1>Operations overview</h1>
+      <p>Sales, purchasing, cash collection, and stock health in one workspace.</p>
+    </div>
+    <a class="button" href="/orders/new">Create a sales order</a>
+  </section>
+
+  <section class="stats" aria-label="Business summary" data-testid="dashboard-summary">
+    <a class="stat" href="/orders"><span class="stat-label">Open sales</span><strong class="stat-value" data-testid="open-sales-count"><%= pendingOrders %></strong></a>
+    <a class="stat" href="/purchase-orders"><span class="stat-label">Open purchases</span><strong class="stat-value" data-testid="open-purchases-count"><%= openPurchaseOrders %></strong></a>
+    <a class="stat" href="/invoices"><span class="stat-label">Receivables</span><strong class="stat-value" data-testid="receivables-value"><%= money(outstandingInvoiceCents) %></strong></a>
+    <a class="stat" href="/invoices"><span class="stat-label">Paid revenue</span><strong class="stat-value"><%= money(paidRevenueCents) %></strong></a>
+    <a class="stat" href="/products"><span class="stat-label">Low stock</span><strong class="stat-value" data-testid="low-stock-count"><%= lowStockProducts.length %></strong></a>
+  </section>
+
+  <section class="dashboard-grid">
+    <div class="stack">
+      <div class="panel">
+        <div class="panel-heading"><div><h3>Recent sales orders</h3><span>Latest customer demand</span></div><a href="/orders">View all</a></div>
+        <% if (recentOrders.length) { %>
+          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Status</th><th>Value</th></tr></thead><tbody>
+            <% recentOrders.forEach(function (order) { const total = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0); %>
+              <tr data-testid="recent-sales-order"><td><a href="/orders/<%= order.id %>"><strong><%= order.customer.name %></strong></a><br><small><%= new Date(order.createdAt).toLocaleDateString() %></small></td><td><span class="status status-<%= order.status.toLowerCase() %>"><%= order.status %></span></td><td><%= money(total) %></td></tr>
+            <% }) %>
+          </tbody></table></div>
+        <% } else { %><div class="empty">No sales orders yet. Create one to start the order-to-cash workflow.</div><% } %>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><div><h3>Recent purchase orders</h3><span>Incoming stock from suppliers</span></div><a href="/purchase-orders">View all</a></div>
+        <% if (recentPurchaseOrders.length) { %>
+          <div class="table-wrap"><table><thead><tr><th>Supplier</th><th>Status</th><th>Value</th></tr></thead><tbody>
+            <% recentPurchaseOrders.forEach(function (purchaseOrder) { const total = purchaseOrder.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0); %>
+              <tr data-testid="recent-purchase-order"><td><a href="/purchase-orders/<%= purchaseOrder.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a><br><small><%= new Date(purchaseOrder.createdAt).toLocaleDateString() %></small></td><td><span class="status status-<%= purchaseOrder.status.toLowerCase() %>"><%= purchaseOrder.status %></span></td><td><%= money(total) %></td></tr>
+            <% }) %>
+          </tbody></table></div>
+        <% } else { %><div class="empty">No purchase orders yet. Replenish stock when products run low.</div><% } %>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-heading"><div><h3>Stock watch</h3><span>Fewer than 10 usable units</span></div><a href="/products">Inventory</a></div>
+      <% if (lowStockProducts.length) { %>
+        <div>
+          <% lowStockProducts.forEach(function (product) { const available = product.inventoryItem ? product.inventoryItem.availableQty : 0; const reserved = product.inventoryItem ? product.inventoryItem.reservedQty : 0; const usable = available - reserved; %>
+            <p style="display:flex;justify-content:space-between;gap:12px;margin:0;padding:13px 0;border-bottom:1px solid var(--line)" data-testid="low-stock-product">
+              <a href="/products/<%= product.id %>"><strong><%= product.name %></strong><br><small><%= product.sku %> · <%= reserved %> reserved</small></a>
+              <strong class="<%= usable < 5 ? 'danger' : 'warning' %>"><%= usable %> usable</strong>
+            </p>
+          <% }) %>
+        </div>
+      <% } else { %><div class="empty">Inventory is in a healthy range.</div><% } %>
+      <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--line)">
+        <span class="stat-label">Master data</span>
+        <p><strong><%= customerCount %></strong> customers · <strong><%= productCount %></strong> products · <strong><%= orderCount %></strong> lifetime sales orders</p>
+      </div>
+    </div>
+  </section>
+<%- include('partials/footer') %>

@@ -1,0 +1,9 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Purchasing master data</p><h1>Suppliers</h1><p>Maintain vendors used by the stock replenishment workflow.</p></div><a class="button" href="/suppliers/new">+ Add supplier</a></section>
+  <div class="search-row"><strong><%= suppliers.length %> suppliers</strong><input class="search-input" type="search" placeholder="Search name or email" data-table-filter="#supplier-table" /></div>
+  <div class="table-wrap"><table id="supplier-table"><thead><tr><th>Supplier</th><th>Email</th><th>Phone</th><th>Added</th><th></th></tr></thead><tbody>
+    <% suppliers.forEach(function (supplier) { %><tr data-filter-row data-testid="supplier-row"><td><strong><%= supplier.name %></strong></td><td><%= supplier.email %></td><td><%= supplier.phone || '—' %></td><td><%= new Date(supplier.createdAt).toLocaleDateString() %></td><td><a href="/suppliers/<%= supplier.id %>">Open &rarr;</a></td></tr><% }) %>
+  </tbody></table></div>
+  <% if (!suppliers.length) { %><div class="panel empty">No suppliers yet. Add one before creating a purchase order.</div><% } %>
+  <script>document.querySelectorAll('[data-table-filter]').forEach(function (input) { input.addEventListener('input', function () { document.querySelectorAll(input.dataset.tableFilter + ' [data-filter-row]').forEach(function (row) { row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()); }); }); });</script>
+<%- include('../partials/footer') %>

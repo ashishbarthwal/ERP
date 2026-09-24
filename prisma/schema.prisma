@@ -1,0 +1,155 @@
+// Original schema design for mini-erp. See docs/architecture/mini-erp.md for rationale.
+// SQLite for local dev; datasource provider is the only change needed to target Postgres later.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum type, so Role/OrderStatus/InvoiceStatus are plain strings
+// constrained by the TypeScript literal types in src/modules/*/*.types.ts and validated
+// at the service layer. Swapping the datasource to Postgres later can reintroduce real
+// Prisma enums without changing application code.
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("STAFF")
+  createdAt    DateTime @default(now())
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  sku           String         @unique
+  name          String
+  description   String?
+  priceCents    Int
+  createdAt     DateTime       @default(now())
+  inventoryItem InventoryItem?
+  inventoryMovements InventoryMovement[]
+  orderItems    OrderItem[]
+  invoiceItems  InvoiceItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+}
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  productId     String   @unique
+  product       Product  @relation(fields: [productId], references: [id])
+  availableQty  Int      @default(0)
+  reservedQty   Int      @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+model InventoryMovement {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  type          String
+  quantityDelta Int      @default(0)
+  reservedDelta Int      @default(0)
+  referenceType String?
+  referenceId   String?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  phone          String?
+  createdAt      DateTime        @default(now())
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id         String              @id @default(cuid())
+  supplierId String
+  supplier   Supplier            @relation(fields: [supplierId], references: [id])
+  status     String              @default("DRAFT")
+  items      PurchaseOrderItem[]
+  createdAt  DateTime            @default(now())
+  orderedAt  DateTime?
+  receivedAt DateTime?
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  quantity        Int
+  unitCostCents   Int
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  status      String      @default("DRAFT")
+  items       OrderItem[]
+  invoice     Invoice?
+  createdAt   DateTime    @default(now())
+  confirmedAt DateTime?
+}
+
+model OrderItem {
+  id            String  @id @default(cuid())
+  orderId       String
+  order         Order   @relation(fields: [orderId], references: [id])
+  productId     String
+  product       Product @relation(fields: [productId], references: [id])
+  quantity      Int
+  unitPriceCents Int
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  orderId     String        @unique
+  order       Order         @relation(fields: [orderId], references: [id])
+  status      String        @default("PENDING")
+  totalCents  Int
+  items       InvoiceItem[]
+  payments    Payment[]
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+}
+
+model InvoiceItem {
+  id             String  @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice @relation(fields: [invoiceId], references: [id])
+  productId      String
+  product        Product @relation(fields: [productId], references: [id])
+  quantity       Int
+  unitPriceCents Int
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  amountCents Int
+  method      String   @default("manual")
+  createdAt   DateTime @default(now())
+}

@@ -1,0 +1,9 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Purchasing master data</p><h1>New supplier</h1><p>Create a vendor that can be selected on purchase orders.</p></div></section>
+  <div class="panel" style="max-width:680px"><form action="/suppliers" method="post" data-testid="supplier-form">
+    <div><label for="name">Supplier name</label><input type="text" id="name" name="name" autocomplete="organization" required /></div>
+    <div><label for="email">Email</label><input type="email" id="email" name="email" autocomplete="email" required /></div>
+    <div><label for="phone">Phone</label><input type="tel" id="phone" name="phone" autocomplete="tel" /></div>
+    <div class="form-actions"><button type="submit">Create supplier</button><a class="button ghost" href="/suppliers">Cancel</a></div>
+  </form></div>
+<%- include('../partials/footer') %>

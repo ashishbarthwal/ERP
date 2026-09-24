@@ -1,0 +1,6 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Supplier account</p><h1><%= supplier.name %></h1><p><%= supplier.email %><% if (supplier.phone) { %> · <%= supplier.phone %><% } %></p></div><a class="button" href="/purchase-orders/new">New purchase order</a></section>
+  <div class="panel"><div class="panel-heading"><div><h3>Purchase history</h3><span><%= supplier.purchaseOrders.length %> purchase order<%= supplier.purchaseOrders.length === 1 ? '' : 's' %></span></div></div>
+    <% if (supplier.purchaseOrders.length) { %><div class="table-wrap"><table><thead><tr><th>Purchase order</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody><% supplier.purchaseOrders.forEach(function (purchaseOrder) { %><tr data-testid="supplier-purchase-order"><td class="mono"><%= purchaseOrder.id.slice(0, 12) %></td><td><span class="status status-<%= purchaseOrder.status.toLowerCase() %>"><%= purchaseOrder.status %></span></td><td><%= new Date(purchaseOrder.createdAt).toLocaleDateString() %></td><td><a href="/purchase-orders/<%= purchaseOrder.id %>">Open &rarr;</a></td></tr><% }) %></tbody></table></div><% } else { %><div class="empty">No purchases from this supplier yet.</div><% } %>
+  </div>
+<%- include('../partials/footer') %>

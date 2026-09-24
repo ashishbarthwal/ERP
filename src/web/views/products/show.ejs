@@ -1,0 +1,34 @@
+<% const movementLabel = (type) => ({ MANUAL_ADDITION: 'Manual addition', PURCHASE_RECEIPT: 'Purchase receipt', ORDER_RESERVATION: 'Sales reservation', ORDER_RELEASE: 'Reservation released', SALE_CONSUMPTION: 'Sale fulfilled' }[type] || type); %>
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Catalog / <%= product.sku %></p><h1><%= product.name %></h1><p><%= product.description || 'No product description.' %></p></div><a class="button secondary" href="/products">Back to products</a></section>
+
+  <section class="stats" aria-label="Product inventory">
+    <div class="stat"><span class="stat-label">Sale price</span><strong class="stat-value">$<%= (product.priceCents / 100).toFixed(2) %></strong></div>
+    <div class="stat"><span class="stat-label">On hand</span><strong class="stat-value" data-testid="available-qty"><%= product.inventoryItem.availableQty %></strong></div>
+    <div class="stat"><span class="stat-label">Reserved</span><strong class="stat-value" data-testid="reserved-qty"><%= product.inventoryItem.reservedQty %></strong></div>
+    <div class="stat"><span class="stat-label">Usable</span><strong class="stat-value" data-testid="usable-qty"><%= product.inventoryItem.availableQty - product.inventoryItem.reservedQty %></strong></div>
+  </section>
+
+  <section class="detail-grid">
+    <div class="panel">
+      <div class="panel-heading"><div><h3>Manual stock adjustment</h3><span>For corrections and initial stock only</span></div></div>
+      <form action="/products/<%= product.id %>/stock" method="post" data-testid="stock-adjustment-form">
+        <div><label for="quantity">Quantity to add</label><input type="number" id="quantity" name="quantity" min="1" required /></div>
+        <div><label for="note">Reason</label><input type="text" id="note" name="note" placeholder="e.g. Opening balance correction" maxlength="160" /></div>
+        <button type="submit">Add stock</button>
+      </form>
+      <p class="helper">Normal replenishment should use a purchase order so the receipt has a supplier trail.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-heading"><div><h3>Inventory movement ledger</h3><span>Latest 20 changes</span></div></div>
+      <% if (product.inventoryMovements.length) { %>
+        <div class="table-wrap"><table data-testid="inventory-ledger"><thead><tr><th>Movement</th><th>On hand</th><th>Reserved</th><th>When</th></tr></thead><tbody>
+          <% product.inventoryMovements.forEach(function (movement) { %>
+            <tr data-testid="inventory-movement"><td><strong><%= movementLabel(movement.type) %></strong><% if (movement.note) { %><br><small><%= movement.note %></small><% } %><% if (movement.referenceId) { %><br><span class="mono"><%= movement.referenceId.slice(0, 12) %></span><% } %></td><td class="<%= movement.quantityDelta >= 0 ? 'positive' : 'danger' %>"><%= movement.quantityDelta > 0 ? '+' : '' %><%= movement.quantityDelta %></td><td class="<%= movement.reservedDelta > 0 ? 'warning' : (movement.reservedDelta < 0 ? 'positive' : '') %>"><%= movement.reservedDelta > 0 ? '+' : '' %><%= movement.reservedDelta %></td><td><%= new Date(movement.createdAt).toLocaleString() %></td></tr>
+          <% }) %>
+        </tbody></table></div>
+      <% } else { %><div class="empty">No recorded stock movements yet.</div><% } %>
+    </div>
+  </section>
+<%- include('../partials/footer') %>

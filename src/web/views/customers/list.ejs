@@ -1,0 +1,19 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Relationships</p><h1>Customers</h1><p>People and businesses connected to your orders.</p></div><a class="button" href="/customers/new">+ Add customer</a></section>
+  <div class="search-row"><strong><%= customers.length %> customers</strong><input class="search-input" type="search" placeholder="Search customers" data-table-filter="#customer-table" /></div>
+  <div class="table-wrap"><table id="customer-table">
+    <thead>
+      <tr><th>Name</th><th>Email</th><th>Phone</th></tr>
+    </thead>
+    <tbody>
+      <% customers.forEach(function (customer) { %>
+        <tr data-filter-row>
+          <td><a href="/customers/<%= customer.id %>"><%= customer.name %></a></td>
+          <td><%= customer.email %></td>
+          <td><%= customer.phone || '-' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table></div>
+  <script>document.querySelectorAll('[data-table-filter]').forEach(function (input) { input.addEventListener('input', function () { document.querySelectorAll(input.dataset.tableFilter + ' [data-filter-row]').forEach(function (row) { row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()); }); }); });</script>
+<%- include('../partials/footer') %>

@@ -1,0 +1,33 @@
+<%- include('../partials/header') %>
+  <h2>New order</h2>
+  <form action="/orders" method="post">
+    <div>
+      <label for="customerId">Customer</label>
+      <select id="customerId" name="customerId" required>
+        <option value="">Select a customer</option>
+        <% customers.forEach(function (customer) { %>
+          <option value="<%= customer.id %>"><%= customer.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <fieldset>
+      <legend>Items</legend>
+      <% [0, 1, 2].forEach(function (i) { %>
+        <div>
+          <label for="productId-<%= i %>">Product</label>
+          <select id="productId-<%= i %>" name="items[<%= i %>][productId]">
+            <option value="">-</option>
+            <% products.forEach(function (product) { %>
+              <option value="<%= product.id %>"><%= product.name %> ($<%= (product.priceCents / 100).toFixed(2) %>)</option>
+            <% }) %>
+          </select>
+          <label for="quantity-<%= i %>">Quantity</label>
+          <input type="number" id="quantity-<%= i %>" name="items[<%= i %>][quantity]" min="1" />
+        </div>
+      <% }) %>
+    </fieldset>
+
+    <button type="submit">Create order</button>
+  </form>
+<%- include('../partials/footer') %>

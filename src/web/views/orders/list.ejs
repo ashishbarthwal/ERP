@@ -1,0 +1,17 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Order to cash</p><h1>Sales orders</h1><p>Track customer demand from draft through reservation, fulfillment, and invoicing.</p></div><a class="button" href="/orders/new">+ New sales order</a></section>
+  <div class="search-row"><strong><%= orders.length %> orders</strong><input class="search-input" type="search" placeholder="Search customer or status" data-table-filter="#orders-table" /></div>
+  <div class="table-wrap"><table id="orders-table"><thead><tr><th>Customer</th><th>Items</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>
+    <% orders.forEach(function (order) { %>
+      <tr data-filter-row>
+        <td><a href="/orders/<%= order.id %>"><strong><%= order.customer.name %></strong></a><br><small><%= order.customer.email %></small></td>
+        <td><%= order.items.length %> line<%= order.items.length === 1 ? '' : 's' %></td>
+        <td><span class="status status-<%= order.status.toLowerCase() %>"><%= order.status %></span></td>
+        <td><%= new Date(order.createdAt).toLocaleDateString() %></td>
+        <td><a href="/orders/<%= order.id %>">Open &rarr;</a></td>
+      </tr>
+    <% }) %>
+  </tbody></table></div>
+  <% if (!orders.length) { %><div class="panel empty">No orders yet. Create one to begin.</div><% } %>
+  <script>document.querySelectorAll('[data-table-filter]').forEach(function (input) { input.addEventListener('input', function () { document.querySelectorAll(input.dataset.tableFilter + ' [data-filter-row]').forEach(function (row) { row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()); }); }); });</script>
+<%- include('../partials/footer') %>

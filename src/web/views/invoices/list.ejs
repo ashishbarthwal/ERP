@@ -1,0 +1,13 @@
+<% const money = (cents) => `$${(cents / 100).toFixed(2)}`; const outstanding = invoices.reduce((sum, invoice) => sum + invoice.totalCents - invoice.payments.reduce((paid, payment) => paid + payment.amountCents, 0), 0); %>
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Accounts receivable</p><h1>Invoices</h1><p>Follow billed sales through partial payment to settlement.</p></div><a class="button secondary" href="/orders">View sales orders</a></section>
+  <section class="stats" aria-label="Invoice totals"><div class="stat"><span class="stat-label">Invoices</span><strong class="stat-value"><%= invoices.length %></strong></div><div class="stat"><span class="stat-label">Outstanding</span><strong class="stat-value warning" data-testid="total-outstanding"><%= money(outstanding) %></strong></div><div class="stat"><span class="stat-label">Paid invoices</span><strong class="stat-value positive"><%= invoices.filter((invoice) => invoice.status === 'PAID').length %></strong></div></section>
+  <div class="search-row"><strong><%= invoices.length %> invoices</strong><input class="search-input" type="search" placeholder="Search customer or status" data-table-filter="#invoice-table" /></div>
+  <div class="table-wrap"><table id="invoice-table"><thead><tr><th>Customer</th><th>Status</th><th>Total</th><th>Outstanding</th><th>Issued</th><th></th></tr></thead><tbody>
+    <% invoices.forEach(function (invoice) { const paid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); %>
+      <tr data-filter-row data-testid="invoice-row"><td><strong><%= invoice.order.customer.name %></strong><br><span class="mono"><%= invoice.id.slice(0, 12) %></span></td><td><span class="status status-<%= invoice.status.toLowerCase() %>"><%= invoice.status %></span></td><td><%= money(invoice.totalCents) %></td><td><strong><%= money(invoice.totalCents - paid) %></strong></td><td><%= new Date(invoice.createdAt).toLocaleDateString() %></td><td><a href="/invoices/<%= invoice.id %>">Open &rarr;</a></td></tr>
+    <% }) %>
+  </tbody></table></div>
+  <% if (!invoices.length) { %><div class="panel empty">No invoices yet. Confirm a sales order, then generate its invoice.</div><% } %>
+  <script>document.querySelectorAll('[data-table-filter]').forEach(function (input) { input.addEventListener('input', function () { document.querySelectorAll(input.dataset.tableFilter + ' [data-filter-row]').forEach(function (row) { row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()); }); }); });</script>
+<%- include('../partials/footer') %>

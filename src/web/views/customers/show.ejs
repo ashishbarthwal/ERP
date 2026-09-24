@@ -1,0 +1,12 @@
+<%- include('../partials/header') %>
+  <h2>Customer: <%= customer.name %></h2>
+  <p>Email: <%= customer.email %></p>
+  <p>Phone: <%= customer.phone || '-' %></p>
+  <h3>Orders</h3>
+  <ul>
+    <% customer.orders.forEach(function (order) { %>
+      <li><a href="/orders/<%= order.id %>"><%= order.id %></a> - <%= order.status %></li>
+    <% }) %>
+  </ul>
+  <% if (customer.orders.length === 0) { %><p>No orders yet.</p><% } %>
+<%- include('../partials/footer') %>

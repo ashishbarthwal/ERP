@@ -1,0 +1,11 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Procure to stock</p><h1>New purchase order</h1><p>Add up to three distinct products. Costs are captured as a historical snapshot.</p></div></section>
+  <% if (!suppliers.length || !products.length) { %><div class="flash" role="alert">You need at least one supplier and one product before creating a purchase order.</div><% } %>
+  <div class="panel" style="max-width:850px"><form class="line-items" action="/purchase-orders" method="post" data-testid="purchase-order-form">
+    <div><label for="supplierId">Supplier</label><select id="supplierId" name="supplierId" required><option value="">Select a supplier</option><% suppliers.forEach(function (supplier) { %><option value="<%= supplier.id %>"><%= supplier.name %></option><% }) %></select><p class="helper">Missing a vendor? <a href="/suppliers/new">Add a supplier</a>.</p></div>
+    <fieldset><legend>Products to purchase</legend>
+      <% [0, 1, 2].forEach(function (i) { %><div class="line-item" data-testid="purchase-order-line"><div><label for="po-product-<%= i %>">Product <%= i + 1 %></label><select id="po-product-<%= i %>" name="items[<%= i %>][productId]" <%= i === 0 ? 'required' : '' %>><option value=""><%= i === 0 ? 'Select a product' : 'Optional' %></option><% products.forEach(function (product) { %><option value="<%= product.id %>"><%= product.name %> (<%= product.sku %>)</option><% }) %></select></div><div><label for="po-quantity-<%= i %>">Quantity</label><input type="number" id="po-quantity-<%= i %>" name="items[<%= i %>][quantity]" min="1" <%= i === 0 ? 'required' : '' %> /></div><div><label for="po-cost-<%= i %>">Unit cost (cents)</label><input type="number" id="po-cost-<%= i %>" name="items[<%= i %>][unitCostCents]" min="0" <%= i === 0 ? 'required' : '' %> /></div></div><% }) %>
+    </fieldset>
+    <div class="form-actions"><button type="submit" <%= !suppliers.length || !products.length ? 'disabled' : '' %>>Create draft</button><a class="button ghost" href="/purchase-orders">Cancel</a></div>
+  </form></div>
+<%- include('../partials/footer') %>

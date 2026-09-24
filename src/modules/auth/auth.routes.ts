@@ -1,0 +1,34 @@
+import { Router } from 'express';
+import { asyncHandler } from '../../middleware/error.middleware';
+import { requireAuth } from '../../middleware/auth.middleware';
+import { loginSchema, registerSchema } from './auth.types';
+import { getCurrentUser, loginUser, registerUser } from './auth.service';
+
+export const authRouter = Router();
+
+authRouter.post(
+  '/register',
+  asyncHandler(async (req, res) => {
+    const input = registerSchema.parse(req.body);
+    const result = await registerUser(input);
+    res.status(201).json(result);
+  }),
+);
+
+authRouter.post(
+  '/login',
+  asyncHandler(async (req, res) => {
+    const input = loginSchema.parse(req.body);
+    const result = await loginUser(input);
+    res.status(200).json(result);
+  }),
+);
+
+authRouter.get(
+  '/me',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await getCurrentUser(req.user!.userId);
+    res.status(200).json(user);
+  }),
+);
