@@ -1,0 +1,40 @@
+name: Change-aware ERP tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run all reviewed ERP contracts
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: erp-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: erp
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Analyze changes and run generated contracts
+        # Reviewed framework foundation. Update this pin after verifying framework upgrades.
+        uses: ashishbarthwal/ai-self-healing-test-automation-framework@7f8d5c5522c4a6717c440ce5ec8f3de63cf1d1d6
+        with:
+          erp-path: ${{ github.workspace }}/erp
+          base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
+          head-sha: ${{ github.event.pull_request.head.sha || github.sha }}
+          full: ${{ github.event_name == 'workflow_dispatch' && inputs.full || false }}

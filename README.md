@@ -54,3 +54,19 @@ The companion repository, `ai-self-healing-test-automation-framework`, contains
 the Playwright tests and CI workflows. It should target a deployed instance of
 this application through environment configuration rather than sharing source
 files with this repository.
+
+## Automatic change-aware tests
+
+The **Change-aware ERP tests** GitHub workflow runs after a push to `main`, for
+same-repository pull requests targeting `main`, and on manual dispatch. It calls
+the companion test repository's composite action at a pinned commit. All test
+implementation stays in the test repository.
+
+The action analyzes the base/head Git diff, generates Playwright tests from
+reviewed contracts, builds this ERP revision, and runs against a fresh temporary
+SQLite database. Plans, generated tests, review drafts and reports are attached
+to the workflow run as private artifacts. A manual run can execute all 14 contracts.
+
+See the [automation approach and roadmap](https://github.com/ashishbarthwal/ai-self-healing-test-automation-framework/blob/main/docs/CHANGE_AWARE_AUTOMATION.md).
+New requirements and changed business behavior still need review; AI healing is
+not enabled in this first foundation.
