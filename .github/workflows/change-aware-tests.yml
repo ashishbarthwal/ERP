@@ -32,7 +32,7 @@ jobs:
           node-version: '24'
       - name: Analyze changes and run generated contracts
         # Reviewed framework foundation. Update this pin after verifying framework upgrades.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@7f8d5c5522c4a6717c440ce5ec8f3de63cf1d1d6
+        uses: ashishbarthwal/ai-self-healing-test-automation-framework@fd247774837cb124832f184ec291de0a93d94a69
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
