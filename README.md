@@ -16,6 +16,7 @@ The application includes:
 - sales orders, purchase orders, invoices, and payments
 - atomic stock reservation, receipt, release, and consumption workflows
 - Prisma migrations and deterministic development seed data
+- an authenticated operational analytics cockpit with period filters and daily CSV export
 
 ## Stack
 
@@ -36,6 +37,12 @@ npm run dev
 
 The application listens on `http://localhost:4000` by default. Set `PORT` in
 `.env` to use another port.
+
+After signing in, open `http://localhost:4000/analytics` for 7/30/90-day
+invoicing, collections, purchase receipts, sales pipeline, top products and
+current receivables/stock alerts. The **Export daily CSV** button downloads
+date-level transaction totals suitable for Power BI Desktop's CSV import.
+See [analytics definitions and Power BI steps](docs/ANALYTICS.md).
 
 Do not commit `.env`, `prisma/dev.db`, or production secrets. The development
 seed data is for local testing only.
@@ -65,8 +72,13 @@ implementation stays in the test repository.
 The action analyzes the base/head Git diff, generates Playwright tests from
 reviewed contracts, builds this ERP revision, and runs against a fresh temporary
 SQLite database. Plans, generated tests, review drafts and reports are attached
-to the workflow run as private artifacts. A manual run can execute all 14 contracts.
+to the workflow run as private artifacts. A manual run can execute all 15 contracts.
 
 See the [automation approach and roadmap](https://github.com/ashishbarthwal/ai-self-healing-test-automation-framework/blob/main/docs/CHANGE_AWARE_AUTOMATION.md).
 New requirements and changed business behavior still need review; AI healing is
 not enabled in this first foundation.
+
+Each completed pipeline run also publishes an `erp-analytics` artifact containing
+sanitized run/test history and CSVs for Power BI. In the test repository, use
+`npm run analytics:sync` to collect these artifacts and rebuild local report data.
+See the [Power BI setup guide](https://github.com/ashishbarthwal/ai-self-healing-test-automation-framework/blob/main/analytics/powerbi/README.md).

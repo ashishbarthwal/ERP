@@ -26,6 +26,7 @@ import {
   receivePurchaseOrder,
   submitPurchaseOrder,
 } from '../modules/purchasing/purchasing.service';
+import { analyticsCsv, getAnalytics, parseAnalyticsPeriod } from '../modules/analytics/analytics.service';
 
 export const webViewsPath = path.join(__dirname, 'views');
 
@@ -130,6 +131,18 @@ webRouter.get('/dashboard', requireWebAuth, async (req, res) => {
       })
       .slice(0, 4),
   });
+});
+
+webRouter.get('/analytics', requireWebAuth, async (req, res) => {
+  res.render('analytics', { analytics: await getAnalytics(parseAnalyticsPeriod(req.query.days)) });
+});
+
+webRouter.get('/analytics/export.csv', requireWebAuth, async (req, res) => {
+  const analytics = await getAnalytics(parseAnalyticsPeriod(req.query.days));
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="erp-daily-analytics-${analytics.days}d.csv"`);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.send(analyticsCsv(analytics));
 });
 
 webRouter.get('/customers', requireWebAuth, async (_req, res) => {

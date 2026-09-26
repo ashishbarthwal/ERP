@@ -46,6 +46,7 @@
         <p class="nav-label">Overview</p>
         <nav aria-label="Main navigation">
           <a href="/dashboard" <%= pageTitle === 'Overview' ? 'aria-current="page"' : '' %>>Overview</a>
+          <a href="/analytics" <% if (pageTitle === 'Analytics') { %>aria-current="page"<% } %>>Analytics</a>
         </nav>
         <p class="nav-label" style="margin-top:24px">Sales</p>
         <nav aria-label="Sales navigation">

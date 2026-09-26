@@ -1,0 +1,33 @@
+# ERP operational analytics
+
+Sign in and open `/analytics` for a live, read-only cockpit. The 7/30/90-day
+selector uses UTC calendar days, including today. Invoiced value counts invoices
+by creation date; collected value counts payments by posting date; received
+purchase cost counts received purchase orders by receipt date. These events
+can occur on different days and should not be subtracted to infer profit.
+
+Open receivables, ordered purchase commitments and low-stock alerts are
+**current snapshots**, unaffected by the period selector. Receivables are
+unpaid invoice amounts after partial payments. The overdue figure is the
+portion on invoices created more than 30 days ago; it is not a contractual
+due-date calculation. Ordered commitments exclude draft purchase orders.
+Stock alerts mean fewer than 10 available-minus-reserved units. Product rankings
+use invoiced line prices, not the current product price. This is operational
+reporting, not a general ledger or financial statement.
+
+## Power BI Desktop starter
+
+1. Use **Export daily CSV** on `/analytics`, while signed in. The export contains
+   `date_utc,invoiced_cents,collected_cents,received_cost_cents` and one row for
+   every UTC date in the selected period, including zero-activity dates.
+2. In Power BI Desktop, **Get data > Text/CSV** and load the downloaded file.
+   Set `date_utc` to Date and the amount columns to Whole number. Create
+   measures such as `Invoiced = DIVIDE(SUM(ERP[invoiced_cents]), 100)` after
+   naming the imported table `ERP`; format as the app's demo currency.
+3. Plot `date_utc` against invoiced and collected measures. Re-export and refresh
+   to see new transactions. The file is a manual snapshot, not a live Power BI
+   connection. Keep the export private because it contains business totals.
+
+The separate test repository has a different [automation-run Power BI model](https://github.com/ashishbarthwal/ai-self-healing-test-automation-framework/blob/main/analytics/powerbi/README.md)
+for test reliability and change coverage. Do not mix its run/test rows with the
+ERP's business transactions without a deliberate semantic model.
