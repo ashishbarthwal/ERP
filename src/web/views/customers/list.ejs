@@ -1,19 +1,10 @@
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Relationships</p><h1>Customers</h1><p>People and businesses connected to your orders.</p></div><a class="button" href="/customers/new">+ Add customer</a></section>
-  <div class="search-row"><strong><%= customers.length %> customers</strong><input class="search-input" type="search" placeholder="Search customers" data-table-filter="#customer-table" /></div>
-  <div class="table-wrap"><table id="customer-table">
-    <thead>
-      <tr><th>Name</th><th>Email</th><th>Phone</th></tr>
-    </thead>
-    <tbody>
-      <% customers.forEach(function (customer) { %>
-        <tr data-filter-row>
-          <td><a href="/customers/<%= customer.id %>"><%= customer.name %></a></td>
-          <td><%= customer.email %></td>
-          <td><%= customer.phone || '-' %></td>
-        </tr>
-      <% }) %>
-    </tbody>
-  </table></div>
-  <script>document.querySelectorAll('[data-table-filter]').forEach(function (input) { input.addEventListener('input', function () { document.querySelectorAll(input.dataset.tableFilter + ' [data-filter-row]').forEach(function (row) { row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()); }); }); });</script>
+  <section class="page-heading"><div><p class="eyebrow">Sales / master data</p><h1>Customers</h1><p>Accounts used across orders and invoices.</p></div><a class="button" href="/customers/new">Add customer</a></section>
+  <section class="list-surface" data-list-view aria-label="Customer register">
+    <div class="list-toolbar"><strong data-list-count aria-live="polite">Showing <%= customers.length %> of <%= customers.length %></strong><div class="list-controls"><label>Search customers<input type="search" placeholder="Name or email" data-list-search /></label></div></div>
+    <% if (customers.length) { %><div class="table-wrap"><table id="customer-table"><thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th><span class="sr-only">Open customer</span></th></tr></thead><tbody>
+      <% customers.forEach(function (customer) { %><tr data-filter-row><td><a class="record-link" href="/customers/<%= customer.id %>"><%= customer.name %></a></td><td><%= customer.email %></td><td><%= customer.phone || '—' %></td><td><a class="table-action" href="/customers/<%= customer.id %>">View customer</a></td></tr><% }) %>
+    </tbody></table></div><div class="list-empty" data-list-no-results hidden><strong>No matching customers</strong>Try another name or email.</div>
+    <% } else { %><div class="list-empty"><strong>No customers yet</strong>Add a customer before drafting a sales order.</div><% } %>
+  </section>
 <%- include('../partials/footer') %>

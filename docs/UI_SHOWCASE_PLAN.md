@@ -1,6 +1,6 @@
 # Business showcase UI plan
 
-Status: implementation in progress, 27 September 2026. This plan covers a visual and
+Status: second visual pass implemented, 27 September 2026. This plan covers a visual and
 interaction-quality pass for the existing mini-ERP. It is not a claim of SAP/Odoo
 equivalence or production security/readiness. Keep the user's separate
 `docs/ROADMAP.md` work intact.
@@ -20,6 +20,12 @@ equivalence or production security/readiness. Keep the user's separate
 - [Odoo dashboards](https://www.odoo.com/documentation/19.0/applications/productivity/dashboards.html)
   connect real-time metrics with tables and charts. Here, every summary links to
   the existing orders, purchasing, inventory, or invoices screen where possible.
+- [SAP object pages](https://experience.sap.com/fiori-design-web/object-page/)
+  keep the document header, relevant actions, facts and line content in one flow.
+- [SAP list reports](https://experience.sap.com/fiori-design-web/v1-48/list-report-floorplan-sap-fiori-element/)
+  distinguish page actions from table controls; the filter belongs directly
+  above the register. [Frappe list views](https://docs.frappe.io/framework/user/en/api/list)
+  likewise prioritize filters and sorting around operational records.
 
 ## Current problems in the supplied desktop screenshot
 
@@ -54,6 +60,24 @@ workflow indicator, anchor tabs, a wide line-item grid and a clear total summary
 Avoid the old split between a large workflow card and a separate products card.
 Keep our own product name, fields, and transaction rules; no SAP assets or
 branding are copied.
+
+## Second pass: deliberate operator details
+
+The document pages already use the structure above. The next visible mismatch
+was a dark, promotional-feeling sidebar beside bare list tables. We now use a
+quieter light navigation rail, a restrained active marker, and one consistent
+register pattern across sales, purchase, invoice, product, customer, and supplier
+lists. Search/status controls sit immediately above the rows they affect; row
+counts and no-match messages update together. IDs appear as secondary metadata,
+amounts align as numbers, and the product register shows actual usable stock
+against the documented 10-unit demo threshold. No arbitrary success score or
+decorative chart was added.
+
+The filters are client-side because the current demo tables are small. They are
+not a substitute for indexed server-side search and pagination when records grow.
+On narrow screens the page itself must remain within the viewport; only the
+data table scrolls. The existing reviewed contract checks search, status,
+document links, and stock progress, and visual QA checks desktop/mobile overflow.
 
 ## Data rules
 

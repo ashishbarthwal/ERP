@@ -1,5 +1,33 @@
       </main>
     </div>
   </div>
+  <script>
+    document.querySelector('[data-mobile-menu]')?.addEventListener('click', function () {
+      const open = document.getElementById('sidebar').classList.toggle('open');
+      this.setAttribute('aria-expanded', String(open));
+    });
+    document.querySelectorAll('[data-list-view]').forEach(function (view) {
+      const search = view.querySelector('[data-list-search]');
+      const status = view.querySelector('[data-list-status]');
+      const rows = Array.from(view.querySelectorAll('[data-filter-row]'));
+      const count = view.querySelector('[data-list-count]');
+      const noResults = view.querySelector('[data-list-no-results]');
+      function applyFilters() {
+        const query = (search?.value || '').trim().toLocaleLowerCase();
+        const selected = status?.value || '';
+        let visible = 0;
+        rows.forEach(function (row) {
+          const matches = (!query || row.textContent.toLocaleLowerCase().includes(query))
+            && (!selected || row.dataset.status === selected);
+          row.hidden = !matches;
+          if (matches) visible += 1;
+        });
+        if (count) count.textContent = `Showing ${visible} of ${rows.length}`;
+        if (noResults) noResults.hidden = visible !== 0 || rows.length === 0;
+      }
+      search?.addEventListener('input', applyFilters);
+      status?.addEventListener('change', applyFilters);
+    });
+  </script>
 </body>
 </html>
