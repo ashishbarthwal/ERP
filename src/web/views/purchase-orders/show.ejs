@@ -1,17 +1,37 @@
-<% const money = (cents) => `$${(cents / 100).toFixed(2)}`; const total = purchaseOrder.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0); %>
+<% const money = cents => `$${(cents / 100).toFixed(2)}`; const total = purchaseOrder.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0); const units = purchaseOrder.items.reduce((sum, item) => sum + item.quantity, 0); const progress = purchaseOrder.status === 'RECEIVED' ? 100 : purchaseOrder.status === 'ORDERED' ? 50 : 0; %>
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Purchase order</p><h1><span class="mono"><%= purchaseOrder.id.slice(0, 12) %></span></h1><p>Supplier: <a href="/suppliers/<%= purchaseOrder.supplier.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a> · Created <%= new Date(purchaseOrder.createdAt).toLocaleDateString() %></p></div><span class="status status-<%= purchaseOrder.status.toLowerCase() %>" data-testid="purchase-order-status"><%= purchaseOrder.status %></span></section>
-  <section class="stats" aria-label="Purchase order summary"><div class="stat"><span class="stat-label">Order value</span><strong class="stat-value" data-testid="purchase-order-total"><%= money(total) %></strong></div><div class="stat"><span class="stat-label">Product lines</span><strong class="stat-value"><%= purchaseOrder.items.length %></strong></div><div class="stat"><span class="stat-label">Units ordered</span><strong class="stat-value"><%= purchaseOrder.items.reduce((sum, item) => sum + item.quantity, 0) %></strong></div></section>
-  <section class="detail-grid">
-    <div class="panel"><div class="panel-heading"><div><h3>Workflow</h3><span>Draft → ordered → received</span></div></div>
-      <dl class="detail-list"><div><dt>Created</dt><dd><%= new Date(purchaseOrder.createdAt).toLocaleString() %></dd></div><div><dt>Submitted</dt><dd><%= purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleString() : 'Not submitted' %></dd></div><div><dt>Received</dt><dd><%= purchaseOrder.receivedAt ? new Date(purchaseOrder.receivedAt).toLocaleString() : 'Not received' %></dd></div></dl>
-      <div class="actions" style="margin-top:24px" data-testid="purchase-order-actions">
-        <% if (purchaseOrder.status === 'DRAFT') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/submit" method="post"><button type="submit">Submit order</button></form><% } %>
-        <% if (purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/receive" method="post"><button type="submit">Receive all stock</button></form><% } %>
-        <% if (purchaseOrder.status === 'DRAFT' || purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/cancel" method="post"><button class="button ghost" type="submit">Cancel purchase</button></form><% } %>
-        <% if (purchaseOrder.status === 'RECEIVED') { %><a class="button secondary" href="/products/<%= purchaseOrder.items[0].product.id %>">View stock ledger</a><% } %>
+  <article class="document-page">
+    <header class="document-header">
+      <div class="document-heading">
+        <div><p class="eyebrow"><a href="/purchase-orders">Purchase orders</a> / Document</p><h1>Purchase order <span class="document-id"><%= purchaseOrder.id.slice(0, 12) %></span></h1></div>
+        <div class="document-actions" data-testid="purchase-order-actions">
+          <% if (purchaseOrder.status === 'DRAFT') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/submit" method="post"><button type="submit">Submit order</button></form><% } %>
+          <% if (purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/receive" method="post"><button type="submit">Receive all stock</button></form><% } %>
+          <% if (purchaseOrder.status === 'DRAFT' || purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/cancel" method="post"><button class="button ghost" type="submit">Cancel purchase</button></form><% } %>
+          <% if (purchaseOrder.status === 'RECEIVED') { %><a class="button secondary" href="/products/<%= purchaseOrder.items[0].product.id %>">View stock ledger</a><% } %>
+        </div>
       </div>
-    </div>
-    <div class="panel"><div class="panel-heading"><div><h3>Products</h3><span>Stock is added only when received</span></div></div><div class="table-wrap"><table><thead><tr><th>Product</th><th>Qty</th><th>Unit cost</th><th>Total</th></tr></thead><tbody><% purchaseOrder.items.forEach(function (item) { %><tr data-testid="purchase-order-item"><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a><br><small><%= item.product.sku %></small></td><td><%= item.quantity %></td><td><%= money(item.unitCostCents) %></td><td><strong><%= money(item.quantity * item.unitCostCents) %></strong></td></tr><% }) %></tbody></table></div></div>
-  </section>
+      <dl class="document-facts">
+        <div><dt>Supplier</dt><dd><a href="/suppliers/<%= purchaseOrder.supplier.id %>"><%= purchaseOrder.supplier.name %></a></dd></div>
+        <div><dt>Order total</dt><dd data-testid="purchase-order-total"><%= money(total) %></dd></div>
+        <div><dt>Stage</dt><dd><span class="status status-<%= purchaseOrder.status.toLowerCase() %>" data-testid="purchase-order-status"><%= purchaseOrder.status %></span></dd></div>
+        <div><dt>Units ordered</dt><dd><%= units %></dd></div>
+      </dl>
+      <% if (purchaseOrder.status === 'CANCELLED') { %><p class="section-note">This purchase order was cancelled before receipt.</p><% } else { %>
+        <div class="document-progress"><span>Draft</span><div class="progress-track" role="progressbar" aria-label="Purchase order workflow" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= progress %>"><span class="progress-segment <%= purchaseOrder.status === 'RECEIVED' ? 'progress-done' : 'progress-ready' %>" style="width:<%= progress %>%"></span></div><span>Ordered</span><span>Received</span></div>
+      <% } %>
+    </header>
+    <nav class="document-tabs" aria-label="Purchase order sections"><a href="#contents">Contents</a><a href="#details">Details</a></nav>
+    <section class="document-section" id="contents">
+      <h2>Line items</h2><p class="section-note">Stock is added only when the order is received. Unit costs are captured on the document.</p><p class="table-scroll-hint">Swipe the table sideways for quantity and totals.</p>
+      <div class="table-wrap"><table class="table-plain"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit cost</th><th class="numeric">Line total</th></tr></thead><tbody>
+        <% purchaseOrder.items.forEach(function(item, index) { %><tr data-testid="purchase-order-item"><td><%= index + 1 %></td><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td class="mono"><%= item.product.sku %></td><td class="numeric"><%= item.quantity %></td><td class="numeric"><%= money(item.unitCostCents) %></td><td class="numeric"><strong><%= money(item.quantity * item.unitCostCents) %></strong></td></tr><% }) %>
+      </tbody></table></div>
+      <div class="document-total"><div><span><%= purchaseOrder.items.length %> product lines · <%= units %> units</span><strong><%= money(total) %></strong></div><div><strong>Order total</strong><strong><%= money(total) %></strong></div></div>
+    </section>
+    <section class="document-section" id="details">
+      <h2>Document details</h2>
+      <dl class="document-meta"><div><dt>Created</dt><dd><%= new Date(purchaseOrder.createdAt).toLocaleString() %></dd></div><div><dt>Submitted</dt><dd><%= purchaseOrder.orderedAt ? new Date(purchaseOrder.orderedAt).toLocaleString() : 'Not submitted' %></dd></div><div><dt>Received</dt><dd><%= purchaseOrder.receivedAt ? new Date(purchaseOrder.receivedAt).toLocaleString() : 'Not received' %></dd></div></dl>
+    </section>
+  </article>
 <%- include('../partials/footer') %>

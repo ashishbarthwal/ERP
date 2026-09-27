@@ -1,63 +1,77 @@
-<% const money = (cents) => `$${(cents / 100).toFixed(2)}`; %>
+<% const money = cents => `$${(cents / 100).toFixed(2)}`; const activeSales = salesStages.draft + salesStages.ready + salesStages.invoiced; const share = count => activeSales ? Math.round(count / activeSales * 100) : 0; %>
 <%- include('partials/header') %>
   <section class="page-heading">
     <div>
-      <p class="eyebrow">Good morning, <%= user.name.split(' ')[0] %></p>
+      <p class="eyebrow">Operations / live workspace</p>
       <h1>Operations overview</h1>
-      <p>Sales, purchasing, cash collection, and stock health in one workspace.</p>
+      <p>Orders, cash collection, purchasing and stock at a glance.</p>
     </div>
-    <a class="button" href="/orders/new">Create a sales order</a>
+    <span class="section-note">As of <%= asOf.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
   </section>
 
   <section class="stats" aria-label="Business summary" data-testid="dashboard-summary">
-    <a class="stat" href="/orders"><span class="stat-label">Open sales</span><strong class="stat-value" data-testid="open-sales-count"><%= pendingOrders %></strong></a>
-    <a class="stat" href="/purchase-orders"><span class="stat-label">Open purchases</span><strong class="stat-value" data-testid="open-purchases-count"><%= openPurchaseOrders %></strong></a>
-    <a class="stat" href="/invoices"><span class="stat-label">Receivables</span><strong class="stat-value" data-testid="receivables-value"><%= money(outstandingInvoiceCents) %></strong></a>
-    <a class="stat" href="/invoices"><span class="stat-label">Paid revenue</span><strong class="stat-value"><%= money(paidRevenueCents) %></strong></a>
-    <a class="stat" href="/products"><span class="stat-label">Low stock</span><strong class="stat-value" data-testid="low-stock-count"><%= lowStockProducts.length %></strong></a>
+    <a class="stat" href="/orders"><span class="stat-label">Open sales</span><strong class="stat-value" data-testid="open-sales-count"><%= pendingOrders %></strong><small>Draft + ready to invoice</small></a>
+    <a class="stat" href="/purchase-orders"><span class="stat-label">Open purchases</span><strong class="stat-value" data-testid="open-purchases-count"><%= openPurchaseOrders %></strong><small>Draft + ordered</small></a>
+    <a class="stat" href="/invoices"><span class="stat-label">Receivables</span><strong class="stat-value" data-testid="receivables-value"><%= money(outstandingInvoiceCents) %></strong><small>Outstanding balance</small></a>
+    <a class="stat" href="/invoices"><span class="stat-label">Paid invoices</span><strong class="stat-value"><%= money(paidRevenueCents) %></strong><small>Lifetime billed value paid</small></a>
+    <a class="stat" href="/products"><span class="stat-label">Stock alerts</span><strong class="stat-value" data-testid="low-stock-count"><%= lowStockCount %></strong><small>Below 10 usable units</small></a>
   </section>
 
-  <section class="dashboard-grid">
-    <div class="stack">
-      <div class="panel">
-        <div class="panel-heading"><div><h3>Recent sales orders</h3><span>Latest customer demand</span></div><a href="/orders">View all</a></div>
+  <section class="dashboard-grid" aria-label="Operational workbench">
+    <div class="workbench-column">
+      <section class="panel">
+        <div class="panel-heading"><div><h3>Sales orders</h3><p class="section-note">Latest customer demand and billing stage</p></div><a href="/orders">All sales orders</a></div>
         <% if (recentOrders.length) { %>
-          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Status</th><th>Value</th></tr></thead><tbody>
-            <% recentOrders.forEach(function (order) { const total = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0); %>
-              <tr data-testid="recent-sales-order"><td><a href="/orders/<%= order.id %>"><strong><%= order.customer.name %></strong></a><br><small><%= new Date(order.createdAt).toLocaleDateString() %></small></td><td><span class="status status-<%= order.status.toLowerCase() %>"><%= order.status %></span></td><td><%= money(total) %></td></tr>
+          <div class="table-wrap"><table class="table-plain"><thead><tr><th>Customer</th><th>Stage</th><th class="numeric">Order value</th><th>Created</th></tr></thead><tbody>
+            <% recentOrders.forEach(function (order) { const total = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0); const stage = order.invoice ? 'INVOICED' : order.status; %>
+              <tr data-testid="recent-sales-order"><td><a href="/orders/<%= order.id %>"><strong><%= order.customer.name %></strong></a></td><td><span class="status status-<%= order.invoice ? 'paid' : order.status.toLowerCase() %>"><%= stage %></span></td><td class="numeric"><%= money(total) %></td><td><%= new Date(order.createdAt).toLocaleDateString('en-US') %></td></tr>
             <% }) %>
           </tbody></table></div>
-        <% } else { %><div class="empty">No sales orders yet. Create one to start the order-to-cash workflow.</div><% } %>
-      </div>
+        <% } else { %><div class="empty">No sales orders yet. <a href="/orders/new">Create the first order</a>.</div><% } %>
+      </section>
 
-      <div class="panel">
-        <div class="panel-heading"><div><h3>Recent purchase orders</h3><span>Incoming stock from suppliers</span></div><a href="/purchase-orders">View all</a></div>
+      <section class="panel">
+        <div class="panel-heading"><div><h3>Purchase orders</h3><p class="section-note">Incoming inventory and supplier commitments</p></div><a href="/purchase-orders">All purchases</a></div>
         <% if (recentPurchaseOrders.length) { %>
-          <div class="table-wrap"><table><thead><tr><th>Supplier</th><th>Status</th><th>Value</th></tr></thead><tbody>
+          <div class="table-wrap"><table class="table-plain"><thead><tr><th>Supplier</th><th>Stage</th><th class="numeric">Order value</th><th>Created</th></tr></thead><tbody>
             <% recentPurchaseOrders.forEach(function (purchaseOrder) { const total = purchaseOrder.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0); %>
-              <tr data-testid="recent-purchase-order"><td><a href="/purchase-orders/<%= purchaseOrder.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a><br><small><%= new Date(purchaseOrder.createdAt).toLocaleDateString() %></small></td><td><span class="status status-<%= purchaseOrder.status.toLowerCase() %>"><%= purchaseOrder.status %></span></td><td><%= money(total) %></td></tr>
+              <tr><td><a href="/purchase-orders/<%= purchaseOrder.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a></td><td><span class="status status-<%= purchaseOrder.status.toLowerCase() %>"><%= purchaseOrder.status %></span></td><td class="numeric"><%= money(total) %></td><td><%= new Date(purchaseOrder.createdAt).toLocaleDateString('en-US') %></td></tr>
             <% }) %>
           </tbody></table></div>
-        <% } else { %><div class="empty">No purchase orders yet. Replenish stock when products run low.</div><% } %>
-      </div>
+        <% } else { %><div class="empty">No purchase orders yet. <a href="/purchase-orders/new">Start a purchase order</a>.</div><% } %>
+      </section>
     </div>
 
-    <div class="panel">
-      <div class="panel-heading"><div><h3>Stock watch</h3><span>Fewer than 10 usable units</span></div><a href="/products">Inventory</a></div>
-      <% if (lowStockProducts.length) { %>
-        <div>
-          <% lowStockProducts.forEach(function (product) { const available = product.inventoryItem ? product.inventoryItem.availableQty : 0; const reserved = product.inventoryItem ? product.inventoryItem.reservedQty : 0; const usable = available - reserved; %>
-            <p style="display:flex;justify-content:space-between;gap:12px;margin:0;padding:13px 0;border-bottom:1px solid var(--line)" data-testid="low-stock-product">
-              <a href="/products/<%= product.id %>"><strong><%= product.name %></strong><br><small><%= product.sku %> · <%= reserved %> reserved</small></a>
-              <strong class="<%= usable < 5 ? 'danger' : 'warning' %>"><%= usable %> usable</strong>
-            </p>
+    <div class="workbench-column">
+      <section class="panel" data-testid="sales-flow">
+        <div class="panel-heading"><div><h3>Sales flow</h3><p class="section-note"><%= activeSales %> non-cancelled orders</p></div><a href="/orders">Review</a></div>
+        <% if (activeSales) { %>
+          <div class="progress-track" aria-hidden="true" data-testid="sales-flow-bar">
+            <span class="progress-segment progress-draft" style="width:<%= salesStages.draft / activeSales * 100 %>%"></span>
+            <span class="progress-segment progress-ready" style="width:<%= salesStages.ready / activeSales * 100 %>%"></span>
+            <span class="progress-segment progress-done" style="width:<%= salesStages.invoiced / activeSales * 100 %>%"></span>
+          </div>
+          <div class="progress-legend" aria-label="Sales order stages">
+            <div><span><i class="legend-dot progress-draft"></i>Draft</span><strong><%= salesStages.draft %> · <%= share(salesStages.draft) %>%</strong></div>
+            <div><span><i class="legend-dot progress-ready"></i>Ready to invoice</span><strong><%= salesStages.ready %> · <%= share(salesStages.ready) %>%</strong></div>
+            <div><span><i class="legend-dot progress-done"></i>Invoiced</span><strong><%= salesStages.invoiced %> · <%= share(salesStages.invoiced) %>%</strong></div>
+          </div>
+          <% if (salesStages.cancelled) { %><p class="section-note"><%= salesStages.cancelled %> cancelled orders excluded from the bar.</p><% } %>
+        <% } else { %><p class="section-note">No active sales orders yet. The mix appears as orders move through billing.</p><% } %>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h3>Stock watch</h3><p class="section-note">Usable units versus the 10-unit alert line</p></div><a href="/products">Inventory</a></div>
+        <% if (lowStockProducts.length) { %>
+          <% lowStockProducts.forEach(function (product) { const available = product.inventoryItem?.availableQty ?? 0; const reserved = product.inventoryItem?.reservedQty ?? 0; const usable = available - reserved; const fill = Math.max(0, Math.min(100, usable * 10)); const state = usable <= 0 ? 'progress-critical' : usable < 5 ? 'progress-ready' : 'progress-draft'; %>
+            <div class="stock-row" data-testid="low-stock-product"><div class="stock-line"><a href="/products/<%= product.id %>"><strong><%= product.name %></strong></a><strong class="<%= usable <= 0 ? 'danger' : 'warning' %>"><%= usable %> / 10</strong></div>
+              <small><%= product.sku %> · <%= reserved %> reserved · <%= usable <= 0 ? 'Critical' : usable < 5 ? 'Reorder soon' : 'Watch' %></small>
+              <div class="progress-track" role="progressbar" aria-label="<%= product.name %> usable stock against 10-unit alert line" aria-valuemin="0" aria-valuemax="10" aria-valuenow="<%= Math.max(0, Math.min(10, usable)) %>"><span class="progress-segment <%= state %>" style="width:<%= fill %>%"></span></div>
+            </div>
           <% }) %>
-        </div>
-      <% } else { %><div class="empty">Inventory is in a healthy range.</div><% } %>
-      <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--line)">
-        <span class="stat-label">Master data</span>
-        <p><strong><%= customerCount %></strong> customers · <strong><%= productCount %></strong> products · <strong><%= orderCount %></strong> lifetime sales orders</p>
-      </div>
+          <% if (lowStockCount > lowStockProducts.length) { %><p class="section-note"><%= lowStockCount - lowStockProducts.length %> more below threshold. <a href="/products">See all products</a>.</p><% } %>
+        <% } else { %><p class="section-note">No products below the 10-unit alert line.</p><% } %>
+      </section>
     </div>
   </section>
 <%- include('partials/footer') %>

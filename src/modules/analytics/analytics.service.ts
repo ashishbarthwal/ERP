@@ -54,13 +54,25 @@ export async function getAnalytics(days: AnalyticsPeriod, now = new Date()) {
   const stockAlerts = products.filter(product => (product.inventoryItem?.availableQty ?? 0) - (product.inventoryItem?.reservedQty ?? 0) < 10);
   const topProducts = [...productTotals.values()].sort((a, b) => b.revenueCents - a.revenueCents || a.sku.localeCompare(b.sku)).slice(0, 5);
   const salesStatuses = Object.fromEntries(['DRAFT', 'CONFIRMED', 'CANCELLED'].map(status => [status, salesOrders.filter(order => order.status === status).length]));
+  const bucketDays = days === 7 ? 1 : days === 30 ? 3 : 7;
+  const chart = [];
+  for (let offset = 0; offset < trend.length; offset += bucketDays) {
+    const window = trend.slice(offset, offset + bucketDays);
+    chart.push({
+      label: window[0].date.slice(5),
+      start: window[0].date,
+      end: window[window.length - 1].date,
+      invoicedCents: window.reduce((sum, day) => sum + day.invoicedCents, 0),
+      collectedCents: window.reduce((sum, day) => sum + day.collectedCents, 0),
+    });
+  }
 
   return {
     days, since: since.toISOString(), until: until.toISOString(),
     invoicedCents, collectedCents, outstandingCents, overdueCents,
     receivedCostCents, committedPurchaseCents, openPurchaseCount: openPurchases.length,
     salesOrderCount: salesOrders.length, invoiceCount: invoices.length,
-    lowStockCount: stockAlerts.length, salesStatuses, topProducts, trend,
+    lowStockCount: stockAlerts.length, salesStatuses, topProducts, trend, chart,
   };
 }
 

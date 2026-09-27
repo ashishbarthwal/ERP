@@ -1,32 +1,38 @@
-<% const money = (cents) => `$${(cents / 100).toFixed(2)}`; const paidCents = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); const outstandingCents = invoice.totalCents - paidCents; %>
+<% const money = cents => `$${(cents / 100).toFixed(2)}`; const paidCents = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); const outstandingCents = invoice.totalCents - paidCents; const paymentProgress = invoice.totalCents ? Math.max(0, Math.min(100, Math.round(paidCents / invoice.totalCents * 100))) : 0; %>
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Accounts receivable</p><h1>Invoice <span class="mono"><%= invoice.id.slice(0, 12) %></span></h1><p>Customer: <strong><%= invoice.order.customer.name %></strong> · Sales order <a class="mono" href="/orders/<%= invoice.order.id %>"><%= invoice.order.id.slice(0, 12) %></a></p></div><span class="status status-<%= invoice.status.toLowerCase() %>" data-testid="invoice-status"><%= invoice.status %></span></section>
-
-  <section class="stats" aria-label="Invoice summary">
-    <div class="stat"><span class="stat-label">Invoice total</span><strong class="stat-value" data-testid="invoice-total"><%= money(invoice.totalCents) %></strong></div>
-    <div class="stat"><span class="stat-label">Paid</span><strong class="stat-value positive" data-testid="invoice-paid"><%= money(paidCents) %></strong></div>
-    <div class="stat"><span class="stat-label">Outstanding</span><strong class="stat-value <%= outstandingCents ? 'warning' : 'positive' %>" data-testid="invoice-outstanding"><%= money(outstandingCents) %></strong></div>
-  </section>
-
-  <section class="detail-grid">
-    <div class="panel">
-      <div class="panel-heading"><div><h3>Payment history</h3><span><%= invoice.payments.length %> transaction<%= invoice.payments.length === 1 ? '' : 's' %></span></div></div>
-      <% if (invoice.payments.length) { %><div class="timeline"><% invoice.payments.forEach(function (payment) { %><div class="timeline-item" data-testid="payment-record"><strong><%= money(payment.amountCents) %></strong><br><span class="muted"><%= payment.method %> · <%= new Date(payment.createdAt).toLocaleString() %></span></div><% }) %></div><% } else { %><div class="empty">No payments recorded.</div><% } %>
-
+  <article class="document-page">
+    <header class="document-header">
+      <div class="document-heading">
+        <div><p class="eyebrow"><a href="/invoices">Invoices</a> / Accounts receivable</p><h1>Invoice <span class="document-id"><%= invoice.id.slice(0, 12) %></span></h1></div>
+        <div class="document-actions"><a class="button secondary" href="/orders/<%= invoice.order.id %>">Open sales order</a><% if (invoice.status === 'PENDING') { %><a class="button" href="#payments">Record payment</a><% } %></div>
+      </div>
+      <dl class="document-facts">
+        <div><dt>Customer</dt><dd><a href="/customers/<%= invoice.order.customer.id %>"><%= invoice.order.customer.name %></a></dd></div>
+        <div><dt>Invoice total</dt><dd data-testid="invoice-total"><%= money(invoice.totalCents) %></dd></div>
+        <div><dt>Paid</dt><dd data-testid="invoice-paid"><%= money(paidCents) %></dd></div>
+        <div><dt>Outstanding</dt><dd data-testid="invoice-outstanding"><%= money(outstandingCents) %> <span class="status status-<%= invoice.status.toLowerCase() %>" data-testid="invoice-status"><%= invoice.status %></span></dd></div>
+      </dl>
+      <div class="document-progress"><span>Payment progress</span><div class="progress-track" role="progressbar" aria-label="Invoice payment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= paymentProgress %>"><span class="progress-segment <%= invoice.status === 'PAID' ? 'progress-done' : 'progress-ready' %>" style="width:<%= paymentProgress %>%"></span></div><span><%= paymentProgress %>% paid</span></div>
+    </header>
+    <nav class="document-tabs" aria-label="Invoice sections"><a href="#contents">Contents</a><a href="#payments">Payments</a><a href="#details">Details</a></nav>
+    <section class="document-section" id="contents">
+      <h2>Invoice lines</h2><p class="section-note">Prices are captured at billing; tax and discount are not modelled in this demo.</p><p class="table-scroll-hint">Swipe the table sideways for quantity and totals.</p>
+      <div class="table-wrap"><table class="table-plain"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit price</th><th class="numeric">Line total</th></tr></thead><tbody>
+        <% invoice.items.forEach(function(item, index) { %><tr data-testid="invoice-line"><td><%= index + 1 %></td><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td class="mono"><%= item.product.sku %></td><td class="numeric"><%= item.quantity %></td><td class="numeric"><%= money(item.unitPriceCents) %></td><td class="numeric"><strong><%= money(item.quantity * item.unitPriceCents) %></strong></td></tr><% }) %>
+      </tbody></table></div>
+      <div class="document-total"><div><span>Line subtotal</span><strong><%= money(invoice.totalCents) %></strong></div><div><strong>Invoice total</strong><strong><%= money(invoice.totalCents) %></strong></div></div>
+    </section>
+    <section class="document-section" id="payments">
+      <h2>Payment history</h2><p class="section-note"><%= invoice.payments.length %> recorded transaction<%= invoice.payments.length === 1 ? '' : 's' %></p>
+      <% if (invoice.payments.length) { %><div class="table-wrap"><table class="table-plain"><thead><tr><th>Recorded</th><th>Method</th><th class="numeric">Amount</th></tr></thead><tbody><% invoice.payments.forEach(function(payment) { %><tr data-testid="payment-record"><td><%= new Date(payment.createdAt).toLocaleString() %></td><td><%= payment.method %></td><td class="numeric"><%= money(payment.amountCents) %></td></tr><% }) %></tbody></table></div><% } else { %><p class="section-note" style="margin-top:12px">No payments recorded yet.</p><% } %>
       <% if (invoice.status === 'PENDING') { %>
-        <form action="/invoices/<%= invoice.id %>/payments" method="post" data-testid="record-payment-form" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--line)">
-          <div><label for="amountCents">Payment amount (cents)</label><input type="number" id="amountCents" name="amountCents" min="1" max="<%= outstandingCents %>" value="<%= outstandingCents %>" required /></div>
+        <form action="/invoices/<%= invoice.id %>/payments" method="post" data-testid="record-payment-form" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
+          <div><label for="amountDollars">Payment amount ($)</label><input type="text" inputmode="decimal" id="amountDollars" name="amountDollars" pattern="[0-9]+(\.[0-9]{1,2})?" value="<%= (outstandingCents / 100).toFixed(2) %>" required /><p class="helper">Maximum outstanding: <%= money(outstandingCents) %>.</p></div>
           <div><label for="method">Payment method</label><select id="method" name="method"><option value="bank-transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="manual">Other / manual</option></select></div>
           <button type="submit">Record payment</button>
         </form>
       <% } %>
-    </div>
-
-    <div class="panel">
-      <div class="panel-heading"><div><h3>Invoice lines</h3><span>Price snapshot at billing</span></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Product</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>
-        <% invoice.items.forEach(function (item) { %><tr data-testid="invoice-line"><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a><br><small><%= item.product.sku %></small></td><td><%= item.quantity %></td><td><%= money(item.unitPriceCents) %></td><td><strong><%= money(item.quantity * item.unitPriceCents) %></strong></td></tr><% }) %>
-      </tbody></table></div>
-    </div>
-  </section>
+    </section>
+    <section class="document-section" id="details"><h2>Document details</h2><dl class="document-meta"><div><dt>Created</dt><dd><%= new Date(invoice.createdAt).toLocaleString() %></dd></div><div><dt>Source order</dt><dd><a href="/orders/<%= invoice.order.id %>"><%= invoice.order.id.slice(0, 12) %></a></dd></div><div><dt>Paid in full</dt><dd><%= invoice.paidAt ? new Date(invoice.paidAt).toLocaleString() : 'Not yet' %></dd></div></dl></section>
+  </article>
 <%- include('../partials/footer') %>

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { Router } from 'express';
 import { ZodError } from 'zod';
-import { AppError } from '../lib/errors';
+import { AppError, badRequest } from '../lib/errors';
 import { requireWebAuth } from './web.middleware';
 import { setSessionCookie, clearSessionCookie } from './web.middleware';
 import { loginSchema, registerSchema } from '../modules/auth/auth.types';
@@ -60,6 +60,15 @@ const parsePurchaseOrderItems = (
     .filter((item) => item.productId && item.quantity > 0 && item.unitCostCents >= 0);
 };
 
+const parseDollarsToCents = (value: unknown): number => {
+  const amount = String(value ?? '').trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(amount)) throw badRequest('Enter a payment amount with no more than two decimal places');
+  const [dollars, fraction = ''] = amount.split('.');
+  const cents = Number(dollars) * 100 + Number(fraction.padEnd(2, '0'));
+  if (!Number.isSafeInteger(cents) || cents <= 0) throw badRequest('Enter a positive payment amount');
+  return cents;
+};
+
 webRouter.get('/', (req, res) => res.redirect(req.user ? '/dashboard' : '/login'));
 
 webRouter.get('/login', (req, res) => {
@@ -111,25 +120,33 @@ webRouter.get('/dashboard', requireWebAuth, async (req, res) => {
       sum + invoice.totalCents - invoice.payments.reduce((paid, payment) => paid + payment.amountCents, 0),
     0,
   );
+  const salesStages = {
+    draft: orders.filter((order) => order.status === 'DRAFT').length,
+    ready: orders.filter((order) => order.status === 'CONFIRMED' && !order.invoice).length,
+    invoiced: orders.filter((order) => Boolean(order.invoice)).length,
+    cancelled: orders.filter((order) => order.status === 'CANCELLED').length,
+  };
+  const lowStockProducts = products.filter((product) => {
+    const inventory = product.inventoryItem;
+    return (inventory?.availableQty ?? 0) - (inventory?.reservedQty ?? 0) < 10;
+  });
   res.render('dashboard', {
     user,
+    asOf: new Date(),
     customerCount: customers.length,
     productCount: products.length,
     orderCount: orders.length,
-    pendingOrders: orders.filter((order) => order.status === 'DRAFT' || order.status === 'CONFIRMED').length,
+    salesStages,
+    pendingOrders: salesStages.draft + salesStages.ready,
     openPurchaseOrders: purchaseOrders.filter((order) => order.status === 'DRAFT' || order.status === 'ORDERED').length,
     outstandingInvoiceCents,
     paidRevenueCents: invoices
       .filter((invoice) => invoice.status === 'PAID')
       .reduce((sum, invoice) => sum + invoice.totalCents, 0),
-    recentOrders: orders.slice(0, 5),
-    recentPurchaseOrders: purchaseOrders.slice(0, 5),
-    lowStockProducts: products
-      .filter((product) => {
-        const inventory = product.inventoryItem;
-        return inventory ? inventory.availableQty - inventory.reservedQty < 10 : true;
-      })
-      .slice(0, 4),
+    recentOrders: orders.slice(0, 6),
+    recentPurchaseOrders: purchaseOrders.slice(0, 4),
+    lowStockCount: lowStockProducts.length,
+    lowStockProducts: lowStockProducts.slice(0, 5),
   });
 });
 
@@ -263,7 +280,7 @@ webRouter.get('/invoices/:id', requireWebAuth, async (req, res) => {
 webRouter.post('/invoices/:id/payments', requireWebAuth, async (req, res) => {
   try {
     const input = recordPaymentSchema.parse({
-      amountCents: Number(req.body.amountCents),
+      amountCents: parseDollarsToCents(req.body.amountDollars),
       method: req.body.method || undefined,
     });
     await recordPayment(req.params.id, input);
