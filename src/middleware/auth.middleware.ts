@@ -22,6 +22,7 @@ export const requireAuth = async (req: Request, _res: Response, next: NextFuncti
     const token = verifyToken(header.slice('Bearer '.length));
     const user = await prisma.user.findUnique({ where: { id: token.userId }, select: { role: true } });
     if (!user) return next(unauthorized('User no longer exists'));
+    if (user.role === 'PENDING') return next(forbidden('Your account is awaiting administrator approval'));
     req.user = { userId: token.userId, role: asRole(user.role) };
     next();
   } catch (error) { next(error); }

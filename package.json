@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-views.js",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
+    "test:auth": "tsx --test tests/signup.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

@@ -1,4 +1,5 @@
-export const roles = ['ADMIN', 'SALES', 'PURCHASING', 'INVENTORY', 'STAFF'] as const;
+export const assignableRoles = ['ADMIN', 'SALES', 'PURCHASING', 'INVENTORY', 'STAFF'] as const;
+export const roles = [...assignableRoles, 'PENDING'] as const;
 export type Role = (typeof roles)[number];
 
 export type Permission =
@@ -18,6 +19,7 @@ const grants: Record<Exclude<Role, 'ADMIN'>, readonly Permission[]> = {
   PURCHASING: ['suppliers.write', 'purchases.write'],
   INVENTORY: ['products.write', 'inventory.write', 'purchases.receive'],
   STAFF: [],
+  PENDING: [],
 };
 
 export const asRole = (value: string): Role => roles.includes(value as Role) ? value as Role : 'STAFF';

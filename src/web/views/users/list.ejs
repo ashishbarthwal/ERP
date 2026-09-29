@@ -1,9 +1,17 @@
 <%- include('../partials/header') %>
   <section class="page-heading"><div><p class="eyebrow">Administration / access</p><h1>Workspace users</h1><p>Role-based access for the current team.</p></div><a class="button" href="/register">Add user</a></section>
+  <% if (pendingUsers.length) { %>
+  <section class="list-surface" aria-label="Pending account requests" style="margin-bottom:20px">
+    <div class="list-toolbar"><strong><%= pendingUsers.length %> account request<%= pendingUsers.length === 1 ? '' : 's' %> awaiting approval</strong><span class="section-note">Choose a role before granting access</span></div>
+    <div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table"><thead><tr><th>Name</th><th>Email</th><th>Requested</th><th>Grant access</th></tr></thead><tbody>
+      <% pendingUsers.forEach(function(user) { %><tr><td data-label="Name"><strong><%= user.name %></strong></td><td data-label="Email"><%= user.email %></td><td data-label="Requested"><%= new Date(user.createdAt).toLocaleDateString('en-US') %></td><td data-label="Grant access"><form action="/users/<%= user.id %>/approve" method="post" class="approval-form"><%- include('../partials/csrf') %><label class="sr-only" for="role-<%= user.id %>">Role for <%= user.name %></label><select id="role-<%= user.id %>" name="role"><option value="STAFF">Staff · read only</option><option value="SALES">Sales</option><option value="PURCHASING">Purchasing</option><option value="INVENTORY">Inventory</option><option value="ADMIN">Administrator</option></select><button type="submit">Approve</button></form></td></tr><% }) %>
+    </tbody></table></div>
+  </section>
+  <% } %>
   <section class="list-surface" aria-label="Workspace users">
-    <div class="list-toolbar"><strong><%= users.length %> team member<%= users.length === 1 ? '' : 's' %></strong><span class="section-note">Access is managed by role</span></div>
-    <% if (users.length) { %><div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th></tr></thead><tbody>
-      <% users.forEach(function(user) { %><tr><td data-label="Name"><strong><%= user.name %></strong></td><td data-label="Email"><%= user.email %></td><td data-label="Role"><span class="status role-badge"><%= user.role %></span></td><td data-label="Added"><%= new Date(user.createdAt).toLocaleDateString('en-US') %></td></tr><% }) %>
+    <div class="list-toolbar"><strong><%= users.length - pendingUsers.length %> team member<%= users.length - pendingUsers.length === 1 ? '' : 's' %></strong><span class="section-note">Access is managed by role</span></div>
+    <% if (users.length > pendingUsers.length) { %><div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th></tr></thead><tbody>
+      <% users.filter(function(user) { return user.role !== 'PENDING'; }).forEach(function(user) { %><tr><td data-label="Name"><strong><%= user.name %></strong></td><td data-label="Email"><%= user.email %></td><td data-label="Role"><span class="status role-badge"><%= user.role %></span></td><td data-label="Added"><%= new Date(user.createdAt).toLocaleDateString('en-US') %></td></tr><% }) %>
     </tbody></table></div><% } else { %><div class="list-empty"><strong>No users yet</strong>Create a workspace user to begin assigning access.</div><% } %>
   </section>
 <%- include('../partials/footer') %>

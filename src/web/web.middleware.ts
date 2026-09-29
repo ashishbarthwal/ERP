@@ -27,7 +27,7 @@ export const attachOptionalUser = async (req: Request, res: Response, next: Next
     try {
       const payload = verifyToken(token);
       const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { name: true, role: true } });
-      if (!user) clearSessionCookie(res);
+      if (!user || user.role === 'PENDING') clearSessionCookie(res);
       else {
         req.user = { userId: payload.userId, role: asRole(user.role) };
         res.locals.user = { name: user.name, role: req.user.role };
