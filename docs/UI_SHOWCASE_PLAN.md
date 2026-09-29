@@ -376,9 +376,10 @@ The sign-in page now has its own responsive entry layout. Shared navigation,
 headings, buttons, fields, tables and status treatments use one consistent visual
 system. The administrator's user-creation form has a two-column desktop layout.
 The user directory now has labelled mobile rows and an empty state. The sales
-order composer gives its line-item action a full row on narrow phones.
+order composer gives its line-item action a full row on narrow phones. Web
+404 and unexpected error responses use a matching page; API errors remain JSON.
 
-All 23 non-partial EJS page templates were rendered with representative data at
+All 24 non-partial EJS page templates were rendered with representative data at
 320px, 390px and 1440px in `test/scripts/ui/erp-page-audit.test.cjs`. The checks
 cover horizontal overflow, visible page headings and browser script errors. The
 existing `test:erp-ui` interaction suite passed 14 checks. A read-only local

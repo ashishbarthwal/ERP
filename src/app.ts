@@ -60,6 +60,14 @@ export const createApp = () => {
   // bearer-header auth the /api/* routes above use.
   app.use(attachOptionalUser, csrfProtection, webRouter);
 
+  app.use((req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Route not found' });
+    return res.status(404).render('system-error', {
+      pageTitle: 'Page not found', errorCode: '404', errorTitle: 'Page not found',
+      errorDescription: 'This page may have moved, or the address may be incorrect.',
+    });
+  });
+
   // Must be registered last: catches errors thrown/forwarded by every router above.
   app.use(errorMiddleware);
 
