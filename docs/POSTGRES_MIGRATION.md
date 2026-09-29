@@ -8,7 +8,7 @@
 - The ignored local `.env` holds Neon pooled and unpooled URLs from `neon env pull --service postgres`. The linked `development` branch is the local runtime target; `production` has the schema but no demo seed records.
 - The `development` branch has the PostgreSQL baseline applied and a minimal demo seed. The local demo administrator's rotated password is in the ignored `.env` as `ERP_DEMO_ADMIN_PASSWORD`.
 - `prisma/dev.db` is left untouched. Its records are not copied by the PostgreSQL baseline or seed script.
-- The change-aware CI workflow uses an isolated PostgreSQL service and pins the published test-repository runner at `e94324c`. Its full database-backed contract run still needs a successful GitHub Actions result.
+- The change-aware CI workflow uses an isolated PostgreSQL service and pins the published test-repository runner at `9599d93`. Its full database-backed contract run still needs a successful GitHub Actions result.
 
 ## Connect a fresh Neon branch
 
