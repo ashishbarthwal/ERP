@@ -20,6 +20,23 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp-test-password
+          POSTGRES_DB: erp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erp -d erp_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ERP_TEST_DATABASE_URL: postgresql://erp:erp-test-password@localhost:5432/erp_test?schema=public
+      ERP_TEST_DIRECT_URL: postgresql://erp:erp-test-password@localhost:5432/erp_test?schema=public
     steps:
       - uses: actions/checkout@v4
         with:

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
 import { createInvoiceSchema, recordPaymentSchema } from './invoices.types';
 import { createInvoice, getInvoice, listInvoices, recordPayment } from './invoices.service';
 
@@ -16,6 +16,7 @@ invoicesRouter.get(
 
 invoicesRouter.post(
   '/',
+  requirePermission('invoices.write'),
   asyncHandler(async (req, res) => {
     const input = createInvoiceSchema.parse(req.body);
     res.status(201).json(await createInvoice(input));
@@ -31,6 +32,7 @@ invoicesRouter.get(
 
 invoicesRouter.post(
   '/:id/payments',
+  requirePermission('payments.write'),
   asyncHandler(async (req, res) => {
     const input = recordPaymentSchema.parse(req.body);
     res.status(200).json(await recordPayment(req.params.id, input));

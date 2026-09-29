@@ -7,7 +7,7 @@ export const listCustomers = () => prisma.customer.findMany({ orderBy: { created
 export const getCustomer = async (id: string) => {
   const customer = await prisma.customer.findUnique({
     where: { id },
-    include: { orders: true },
+    include: { orders: { orderBy: { createdAt: 'desc' } } },
   });
   if (!customer) {
     throw notFound(`Customer ${id} not found`);

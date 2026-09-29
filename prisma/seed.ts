@@ -6,7 +6,13 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('Password123!', 10);
+  const databaseHost = new URL(process.env.DATABASE_URL || '').hostname;
+  const localDatabase = ['localhost', '127.0.0.1', '::1'].includes(databaseHost);
+  const seedPassword = process.env.ERP_SEED_ADMIN_PASSWORD || (localDatabase ? 'Password123!' : '');
+  if (!seedPassword || seedPassword.length < 12) {
+    throw new Error('Set ERP_SEED_ADMIN_PASSWORD (at least 12 characters) before seeding a hosted database');
+  }
+  const passwordHash = await bcrypt.hash(seedPassword, 10);
   await prisma.user.upsert({
     where: { email: 'admin@mini-erp.test' },
     update: {},

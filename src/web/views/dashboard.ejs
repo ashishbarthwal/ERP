@@ -2,10 +2,11 @@
 <%- include('partials/header') %>
   <section class="page-heading">
     <div>
+      <p class="eyebrow">Operations / overview</p>
       <h1>Business overview</h1>
       <p>Sales, purchasing, payments and stock in one place.</p>
     </div>
-    <span class="section-note">As of <%= asOf.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) %></span>
+    <time class="section-note" datetime="<%= asOf.toISOString() %>">As of <%= asOf.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) %></time>
   </section>
 
   <section class="stats" aria-label="Business summary" data-testid="dashboard-summary">
@@ -21,20 +22,20 @@
       <section class="panel">
         <div class="panel-heading"><div><h3>Sales orders</h3><p class="section-note">Latest customer demand and billing stage</p></div><a href="/orders">All sales orders</a></div>
         <% if (recentOrders.length) { %>
-          <div class="table-wrap"><table class="table-plain"><thead><tr><th>Customer</th><th>Stage</th><th class="numeric">Order value</th><th>Created</th></tr></thead><tbody>
+          <div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table dashboard-recent-table"><thead><tr><th>Customer</th><th>Stage</th><th class="numeric">Order value</th><th>Created</th></tr></thead><tbody>
             <% recentOrders.forEach(function (order) { const total = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0); const stage = order.invoice ? 'INVOICED' : order.status; %>
-              <tr data-testid="recent-sales-order"><td><a href="/orders/<%= order.id %>"><strong><%= order.customer.name %></strong></a></td><td><span class="status status-<%= order.invoice ? 'paid' : order.status.toLowerCase() %>"><%= stage %></span></td><td class="numeric"><%= money(total) %></td><td><%= new Date(order.createdAt).toLocaleDateString('en-US') %></td></tr>
+              <tr data-testid="recent-sales-order"><td data-label="Customer"><a href="/orders/<%= order.id %>"><strong><%= order.customer.name %></strong></a></td><td data-label="Stage"><span class="status status-<%= order.invoice ? 'paid' : order.status.toLowerCase() %>"><%= stage %></span></td><td class="numeric" data-label="Order value"><%= money(total) %></td><td data-label="Created"><%= new Date(order.createdAt).toLocaleDateString('en-US') %></td></tr>
             <% }) %>
           </tbody></table></div>
-        <% } else { %><div class="empty">No sales orders yet. <a href="/orders/new">Create the first order</a>.</div><% } %>
+        <% } else { %><div class="empty">No sales orders yet.<% if (locals.can?.('orders.write')) { %> <a href="/orders/new">Create the first order</a>.<% } %></div><% } %>
       </section>
 
       <section class="panel">
         <div class="panel-heading"><div><h3>Purchase orders</h3><p class="section-note">Incoming inventory and supplier commitments</p></div><a href="/purchase-orders">All purchases</a></div>
         <% if (recentPurchaseOrders.length) { %>
-          <div class="table-wrap"><table class="table-plain"><thead><tr><th>Supplier</th><th>Stage</th><th class="numeric">Order value</th><th>Created</th></tr></thead><tbody>
+          <div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table dashboard-recent-table"><thead><tr><th>Supplier</th><th>Stage</th><th class="numeric">Order value</th><th>Created</th></tr></thead><tbody>
             <% recentPurchaseOrders.forEach(function (purchaseOrder) { const total = purchaseOrder.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0); %>
-              <tr><td><a href="/purchase-orders/<%= purchaseOrder.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a></td><td><span class="status status-<%= purchaseOrder.status.toLowerCase() %>"><%= purchaseOrder.status %></span></td><td class="numeric"><%= money(total) %></td><td><%= new Date(purchaseOrder.createdAt).toLocaleDateString('en-US') %></td></tr>
+              <tr><td data-label="Supplier"><a href="/purchase-orders/<%= purchaseOrder.id %>"><strong><%= purchaseOrder.supplier.name %></strong></a></td><td data-label="Stage"><span class="status status-<%= purchaseOrder.status.toLowerCase() %>"><%= purchaseOrder.status %></span></td><td class="numeric" data-label="Order value"><%= money(total) %></td><td data-label="Created"><%= new Date(purchaseOrder.createdAt).toLocaleDateString('en-US') %></td></tr>
             <% }) %>
           </tbody></table></div>
         <% } else { %><div class="empty">No purchase orders yet. <a href="/purchase-orders/new">Start a purchase order</a>.</div><% } %>

@@ -1,22 +1,11 @@
 <%- include('../partials/header') %>
-  <h2>New product</h2>
-  <form action="/products" method="post">
-    <div>
-      <label for="sku">SKU</label>
-      <input type="text" id="sku" name="sku" required />
-    </div>
-    <div>
-      <label for="name">Name</label>
-      <input type="text" id="name" name="name" required />
-    </div>
-    <div>
-      <label for="description">Description</label>
-      <input type="text" id="description" name="description" />
-    </div>
-    <div>
-      <label for="priceCents">Price (cents)</label>
-      <input type="number" id="priceCents" name="priceCents" min="0" required />
-    </div>
-    <button type="submit">Create product</button>
-  </form>
+  <section class="page-heading"><div><p class="eyebrow">Inventory / catalog</p><h1>New product</h1><p>Add an item to the catalog and define its selling price.</p></div><a class="button ghost" href="/products">Back to products</a></section>
+  <section class="panel master-form-panel"><form action="/products" method="post">
+    <%- include('../partials/csrf') %>
+    <div><label for="sku">SKU</label><input type="text" id="sku" name="sku" value="<%= draft.sku %>" autocomplete="off" required <% if (fieldErrors.sku) { %>aria-invalid="true" aria-describedby="sku-error"<% } %> /><p class="helper">Use a stable, unique stock-keeping code.</p><% if (fieldErrors.sku) { %><p class="field-error" id="sku-error"><%= fieldErrors.sku %></p><% } %></div>
+    <div><label for="name">Product name</label><input type="text" id="name" name="name" value="<%= draft.name %>" required <% if (fieldErrors.name) { %>aria-invalid="true" aria-describedby="name-error"<% } %> /><% if (fieldErrors.name) { %><p class="field-error" id="name-error"><%= fieldErrors.name %></p><% } %></div>
+    <div><label for="description">Description <span class="muted">(optional)</span></label><input type="text" id="description" name="description" value="<%= draft.description %>" <% if (fieldErrors.description) { %>aria-invalid="true" aria-describedby="description-error"<% } %> /><% if (fieldErrors.description) { %><p class="field-error" id="description-error"><%= fieldErrors.description %></p><% } %></div>
+    <div><label for="priceDollars">Sale price ($)</label><input type="text" id="priceDollars" name="priceDollars" value="<%= draft.priceDollars %>" inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" placeholder="0.00" required <% if (fieldErrors.priceDollars) { %>aria-invalid="true" aria-describedby="price-error"<% } %> /><% if (fieldErrors.priceDollars) { %><p class="field-error" id="price-error"><%= fieldErrors.priceDollars %></p><% } else { %><p class="helper">Enter a price with up to two decimal places.</p><% } %></div>
+    <div class="form-actions"><button type="submit">Create product</button><a class="button ghost" href="/products">Cancel</a></div>
+  </form></section>
 <%- include('../partials/footer') %>

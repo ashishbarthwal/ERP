@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
 import { createOrderSchema } from './orders.types';
 import { cancelOrder, confirmOrder, createOrder, getOrder, listOrders } from './orders.service';
 
@@ -16,6 +16,7 @@ ordersRouter.get(
 
 ordersRouter.post(
   '/',
+  requirePermission('orders.write'),
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
     res.status(201).json(await createOrder(input));
@@ -31,6 +32,7 @@ ordersRouter.get(
 
 ordersRouter.post(
   '/:id/confirm',
+  requirePermission('orders.write'),
   asyncHandler(async (req, res) => {
     res.json(await confirmOrder(req.params.id));
   }),
@@ -38,6 +40,7 @@ ordersRouter.post(
 
 ordersRouter.post(
   '/:id/cancel',
+  requirePermission('orders.write'),
   asyncHandler(async (req, res) => {
     res.json(await cancelOrder(req.params.id));
   }),

@@ -16,8 +16,8 @@ export const errorMiddleware = (err: unknown, _req: Request, res: Response, _nex
     });
   }
 
-  if (err instanceof Error && err.name === 'JsonWebTokenError') {
-    return res.status(401).json({ error: 'Invalid token' });
+  if (err instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(err.name)) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
   console.error(err);

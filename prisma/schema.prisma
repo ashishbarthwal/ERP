@@ -1,19 +1,17 @@
-// Original schema design for mini-erp. See docs/architecture/mini-erp.md for rationale.
-// SQLite for local dev; datasource provider is the only change needed to target Postgres later.
+// PostgreSQL is the application database for local, test, and hosted environments.
+// See docs/POSTGRES_MIGRATION.md for Neon setup and retained SQLite history.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-// SQLite has no native enum type, so Role/OrderStatus/InvoiceStatus are plain strings
-// constrained by the TypeScript literal types in src/modules/*/*.types.ts and validated
-// at the service layer. Swapping the datasource to Postgres later can reintroduce real
-// Prisma enums without changing application code.
+// Status and role values remain strings constrained by TypeScript schemas and service validation.
 
 model User {
   id           String   @id @default(cuid())

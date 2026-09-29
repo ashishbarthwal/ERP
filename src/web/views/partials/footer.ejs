@@ -1,17 +1,57 @@
       </main>
     </div>
   </div>
+  <dialog class="confirm-dialog" data-confirm-dialog aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <div class="confirm-dialog-content"><p class="eyebrow">Please confirm</p><h2 id="confirm-title">Review action</h2><p id="confirm-message" data-confirm-message></p>
+      <div class="confirm-dialog-actions"><button class="button ghost" type="button" data-confirm-cancel>Go back</button><button type="button" data-confirm-accept>Confirm action</button></div>
+    </div>
+  </dialog>
   <script>
-    document.querySelector('[data-mobile-menu]')?.addEventListener('click', function () {
-      const open = document.getElementById('sidebar').classList.toggle('open');
-      this.setAttribute('aria-expanded', String(open));
+    const mobileMenu = document.querySelector('[data-mobile-menu]');
+    const mobileSidebar = document.getElementById('sidebar');
+    function setMobileMenu(open, restoreFocus = false) {
+      mobileSidebar?.classList.toggle('open', open);
+      if (mobileMenu) {
+        mobileMenu.setAttribute('aria-expanded', String(open));
+        mobileMenu.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+        mobileMenu.textContent = open ? 'Close' : 'Menu';
+        if (restoreFocus) mobileMenu.focus();
+      }
+    }
+    mobileMenu?.addEventListener('click', () => setMobileMenu(!mobileSidebar?.classList.contains('open')));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && mobileSidebar?.classList.contains('open')) setMobileMenu(false, true);
     });
+    document.addEventListener('pointerdown', event => {
+      if (mobileSidebar?.classList.contains('open') && !mobileSidebar.contains(event.target)) setMobileMenu(false);
+    });
+    window.matchMedia('(max-width: 850px)').addEventListener('change', event => {
+      if (!event.matches) setMobileMenu(false);
+    });
+    document.querySelectorAll('[data-print-document]').forEach(button => {
+      button.addEventListener('click', () => window.print());
+    });
+    function updateProductChoices(root, selector) {
+      const selects = Array.from(root.querySelectorAll(selector));
+      selects.forEach(select => Array.from(select.options).forEach(option => {
+        if (!option.value) return;
+        if (!option.dataset.originalLabel) option.dataset.originalLabel = option.textContent;
+        const chosenElsewhere = selects.some(other => other !== select && other.value === option.value);
+        option.disabled = chosenElsewhere;
+        option.textContent = option.dataset.originalLabel + (chosenElsewhere ? ' (already on this order)' : '');
+      }));
+    }
     document.querySelectorAll('[data-list-view]').forEach(function (view) {
       const search = view.querySelector('[data-list-search]');
       const status = view.querySelector('[data-list-status]');
       const rows = Array.from(view.querySelectorAll('[data-filter-row]'));
       const count = view.querySelector('[data-list-count]');
       const noResults = view.querySelector('[data-list-no-results]');
+      const clearFilters = document.createElement('button');
+      clearFilters.type = 'button'; clearFilters.className = 'button ghost list-clear';
+      clearFilters.textContent = 'Clear filters'; clearFilters.setAttribute('aria-label', 'Clear list search and filters');
+      clearFilters.hidden = true;
+      view.querySelector('.list-controls')?.appendChild(clearFilters);
       function applyFilters() {
         const query = (search?.value || '').trim().toLocaleLowerCase();
         const selected = status?.value || '';
@@ -24,10 +64,479 @@
         });
         if (count) count.textContent = `Showing ${visible} of ${rows.length}`;
         if (noResults) noResults.hidden = visible !== 0 || rows.length === 0;
+        clearFilters.hidden = !query && !selected;
       }
       search?.addEventListener('input', applyFilters);
       status?.addEventListener('change', applyFilters);
+      clearFilters.addEventListener('click', function () {
+        if (search) search.value = '';
+        if (status) status.value = '';
+        applyFilters(); search?.focus();
+      });
+
+      const table = view.querySelector('table');
+      const body = table?.tBodies[0];
+      if (table && body) {
+        const headers = Array.from(table.tHead?.rows[0]?.cells || []);
+        const mobileSortLabel = document.createElement('label');
+        const mobileSortSelect = document.createElement('select');
+        mobileSortLabel.className = 'list-mobile-sort';
+        mobileSortLabel.append('Sort records', mobileSortSelect);
+        mobileSortSelect.append(new Option('Choose a sort order', '', true, true));
+        mobileSortSelect.options[0].disabled = true;
+        headers.forEach(function (header, column) {
+          const name = header.textContent.trim();
+          Array.from(body.rows).forEach(row => { if (row.cells[column]) row.cells[column].dataset.label = name; });
+          if (header.querySelector('.sr-only') || !body.rows.length) return;
+          mobileSortSelect.append(new Option(name + ' · ascending', column + ':ascending'));
+          mobileSortSelect.append(new Option(name + ' · descending', column + ':descending'));
+        });
+        if (body.rows.length) view.querySelector('.list-controls')?.appendChild(mobileSortLabel);
+        mobileSortSelect.addEventListener('change', function () {
+          const [columnText, direction] = this.value.split(':');
+          const header = headers[Number(columnText)];
+          if (!header || !direction || header.getAttribute('aria-sort') === direction) return;
+          const button = header.querySelector('.table-sort');
+          button?.click();
+          if (header.getAttribute('aria-sort') !== direction) button?.click();
+        });
+        headers.forEach(function (header, column) {
+          if (header.querySelector('.sr-only') || !body.rows.length) return;
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = 'table-sort'; button.setAttribute('aria-label', 'Sort by ' + header.textContent.trim());
+          while (header.firstChild) button.appendChild(header.firstChild);
+          header.appendChild(button);
+          button.addEventListener('click', function () {
+            const ascending = header.getAttribute('aria-sort') !== 'ascending';
+            Array.from(table.tHead.rows[0].cells).forEach(cell => cell.removeAttribute('aria-sort'));
+            header.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+            const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+            const rowsInTable = Array.from(body.rows);
+            rowsInTable.sort(function (a, b) {
+              const left = a.cells[column]?.innerText.trim() || '';
+              const right = b.cells[column]?.innerText.trim() || '';
+              const statusRank = { DRAFT: 0, PENDING: 0, CONFIRMED: 1, ORDERED: 1, INVOICED: 2, RECEIVED: 2, PAID: 3, CANCELLED: 4 };
+              const leftStatus = a.cells[column]?.querySelector('.status')?.textContent.trim().toUpperCase();
+              const rightStatus = b.cells[column]?.querySelector('.status')?.textContent.trim().toUpperCase();
+              const bothStatuses = Boolean(leftStatus && rightStatus && leftStatus in statusRank && rightStatus in statusRank);
+              const aDate = Date.parse(left), bDate = Date.parse(right);
+              const bothDates = Number.isFinite(aDate) && Number.isFinite(bDate) && /^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}$/.test(left) && /^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}$/.test(right);
+              const numericPattern = /^[^\w-]*-?[\d,.]+%?$/;
+              const leftNumeric = Number(left.replace(/[^\d.-]/g, ''));
+              const rightNumeric = Number(right.replace(/[^\d.-]/g, ''));
+              const bothNumeric = numericPattern.test(left) && numericPattern.test(right) && Number.isFinite(leftNumeric) && Number.isFinite(rightNumeric);
+              const result = bothStatuses ? statusRank[leftStatus] - statusRank[rightStatus]
+                : bothDates ? aDate - bDate
+                  : bothNumeric ? leftNumeric - rightNumeric : collator.compare(left, right);
+              return (ascending ? 1 : -1) * result;
+            });
+            rowsInTable.forEach(row => body.appendChild(row));
+            mobileSortSelect.value = column + ':' + header.getAttribute('aria-sort');
+            applyFilters();
+          });
+        });
+      }
+      applyFilters();
     });
+
+    document.querySelectorAll('.document-page').forEach(function (page) {
+      const tabs = Array.from(page.querySelectorAll('.document-tabs a[href^="#"]'));
+      const sections = tabs.map(link => page.querySelector(link.getAttribute('href'))).filter(Boolean);
+      function setCurrent(id) {
+        tabs.forEach(link => {
+          if (link.hash === '#' + id) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+      }
+      if (location.hash && page.querySelector(location.hash)) setCurrent(location.hash.slice(1));
+      else if (sections[0]) setCurrent(sections[0].id);
+      if ('IntersectionObserver' in window && sections.length) {
+        const observer = new IntersectionObserver(entries => {
+          const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (visible) setCurrent(visible.target.id);
+        }, { rootMargin: '-18% 0px -68% 0px', threshold: [0, .2, .5, .8] });
+        sections.forEach(section => observer.observe(section));
+      }
+    });
+    document.querySelectorAll('[data-purchase-order-form]').forEach(function (form) {
+      const supplier = form.querySelector('[data-purchase-supplier]');
+      const lines = form.querySelector('[data-purchase-lines]');
+      const template = form.querySelector('[data-purchase-line-template]');
+      const add = form.querySelector('[data-add-purchase-line]');
+      const maxLines = Math.min(3, Math.max(0, (form.querySelector('[data-purchase-product]')?.options.length || 1) - 1));
+      const money = cents => '$' + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      function refreshPurchaseSummary() {
+        let total = 0, units = 0, lines = 0;
+        const rows = Array.from(form.querySelectorAll('[data-testid="purchase-order-line"]'));
+        add.disabled = rows.length >= maxLines;
+        updateProductChoices(form, '[data-purchase-product]');
+        rows.forEach((row, index) => {
+          row.querySelector('[data-purchase-line-number]').textContent = 'Line ' + String(index + 1).padStart(2, '0');
+          const product = row.querySelector('[data-purchase-product]');
+          const quantityInput = row.querySelector('[data-purchase-quantity]');
+          const costInput = row.querySelector('[data-purchase-cost]');
+          const quantity = Number(quantityInput?.value || 0);
+          const rawCost = costInput?.value.trim() || '';
+          const validCost = /^\d+(?:\.\d{1,2})?$/.test(rawCost);
+          const started = Boolean(product?.value || quantityInput?.value || rawCost);
+          product.required = true; quantityInput.required = true; costInput.required = true;
+          const missing = [];
+          if (!product.value) missing.push('a product');
+          if (quantity < 1 || !Number.isInteger(quantity)) missing.push('a whole-number quantity');
+          if (!validCost) missing.push('a unit cost with up to two decimal places');
+          const warning = row.querySelector('[data-purchase-line-message]');
+          if (warning) { warning.hidden = !started || missing.length === 0; warning.textContent = missing.length ? `Enter ${missing.join(', ')} to include this line.` : ''; }
+          const lineTotal = row.querySelector('[data-purchase-line-total]');
+          if (missing.length) { lineTotal.textContent = '—'; return; }
+          const [dollars, fraction = ''] = rawCost.split('.');
+          const amount = (Number(dollars) * 100 + Number(fraction.padEnd(2, '0'))) * quantity;
+          if (!Number.isSafeInteger(amount)) { lineTotal.textContent = '—'; return; }
+          lineTotal.textContent = money(amount);
+          total += amount;
+          units += quantity; lines += 1;
+        });
+        const chosenSupplier = supplier?.selectedOptions[0]?.textContent.trim();
+        form.querySelector('[data-purchase-summary-supplier]').textContent = supplier?.value ? chosenSupplier : 'Not selected';
+        form.querySelector('[data-purchase-summary-total]').textContent = money(total);
+        form.querySelector('[data-purchase-summary-lines]').textContent = String(lines);
+        form.querySelector('[data-purchase-summary-units]').textContent = String(units);
+      }
+      add.addEventListener('click', function () {
+        if (lines.children.length >= maxLines) return;
+        const index = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        const fragment = template.content.cloneNode(true);
+        fragment.querySelectorAll('select,input').forEach(control => {
+          control.name = control.name.replace('__INDEX__', index);
+          const id = 'po-' + (control.name.includes('[productId]') ? 'product-' : control.name.includes('[quantity]') ? 'quantity-' : 'cost-') + index;
+          control.id = id; control.parentElement.querySelector('label').htmlFor = id;
+        });
+        lines.appendChild(fragment); refreshPurchaseSummary();
+        lines.lastElementChild.querySelector('[data-purchase-product]')?.focus();
+      });
+      lines.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-remove-purchase-line]');
+        if (!button) return;
+        const row = button.closest('[data-testid="purchase-order-line"]');
+        const nextFocus = row.nextElementSibling?.querySelector('[data-purchase-product]') || row.previousElementSibling?.querySelector('[data-purchase-product]') || add;
+        row.remove(); refreshPurchaseSummary(); nextFocus.focus();
+      });
+      form.addEventListener('change', function (event) {
+        const select = event.target.closest('[data-purchase-product]');
+        if (select) {
+          const duplicate = select.value && Array.from(form.querySelectorAll('[data-purchase-product]')).some(other => other !== select && other.value === select.value);
+          if (duplicate) {
+            select.setCustomValidity('This product is already on the purchase order. Adjust its quantity instead.');
+            select.reportValidity(); select.value = '';
+          }
+          select.setCustomValidity('');
+        }
+        refreshPurchaseSummary();
+      });
+      form.addEventListener('input', refreshPurchaseSummary);
+      refreshPurchaseSummary();
+    });
+    const confirmDialog = document.querySelector('[data-confirm-dialog]');
+    let pendingForm = null, pendingSubmitter = null;
+    document.querySelector('[data-confirm-cancel]')?.addEventListener('click', () => confirmDialog?.close());
+    document.querySelector('[data-confirm-accept]')?.addEventListener('click', () => {
+      if (!pendingForm) return;
+      const form = pendingForm, submitter = pendingSubmitter;
+      pendingForm = null; pendingSubmitter = null; form.dataset.confirmed = 'true'; confirmDialog?.close();
+      if (submitter) form.requestSubmit(submitter); else form.requestSubmit();
+    });
+    confirmDialog?.addEventListener('close', () => { pendingForm = null; pendingSubmitter = null; });
+    document.addEventListener('submit', function (event) {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== 'post') return;
+      const prompt = form.dataset.confirm;
+      if (prompt && form.dataset.confirmed !== 'true') {
+        event.preventDefault(); pendingForm = form; pendingSubmitter = event.submitter || null;
+        const actionLabel = (pendingSubmitter?.textContent || form.querySelector('button[type="submit"]')?.textContent || 'Confirm action').trim();
+        const title = document.getElementById('confirm-title'); if (title) title.textContent = actionLabel;
+        const message = document.querySelector('[data-confirm-message]'); if (message) message.textContent = prompt;
+        const accept = document.querySelector('[data-confirm-accept]');
+        if (accept) { accept.textContent = actionLabel; accept.classList.toggle('button-danger', form.dataset.confirmTone === 'danger'); }
+        confirmDialog?.showModal(); return;
+      }
+      delete form.dataset.confirmed;
+      const button = form.querySelector('button[type="submit"]');
+      if (button) { button.disabled = true; button.dataset.originalText = button.textContent; button.textContent = 'Processing…'; }
+    });
+
+    (function initInteractiveCharts() {
+      const root = document.querySelector('[data-interactive-chart]');
+      if (!root) return;
+      const svg = root.querySelector('[data-chart-svg]');
+      const pieLegend = document.querySelector('[data-chart-pie-legend]');
+      const dataNode = document.querySelector('[data-chart-data]');
+      if (!svg || !dataNode) return;
+      let rows;
+      try { rows = JSON.parse(dataNode.textContent || '[]'); } catch { return; }
+      if (!Array.isArray(rows) || !rows.length) return;
+      const ns = 'http://www.w3.org/2000/svg';
+      const money = value => '$' + (Number(value || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let mode = 'columns';
+      let series = 'invoicedCents';
+      let selected = -1;
+      let selectedPie = -1;
+      const colors = { invoicedCents: '#176c8a', collectedCents: '#25866e' };
+      const pieGroupSize = rows.length > 7 ? Math.ceil(rows.length / 5) : 1;
+      const pieGroups = [];
+      for (let index = 0; index < rows.length; index += pieGroupSize) {
+        const group = rows.slice(index, index + pieGroupSize);
+        pieGroups.push({
+          index, start: group[0].start || group[0].date || group[0].label,
+          end: group[group.length - 1].end || group[group.length - 1].date || group[group.length - 1].label,
+          invoicedCents: group.reduce((sum, row) => sum + Number(row.invoicedCents || 0), 0),
+          collectedCents: group.reduce((sum, row) => sum + Number(row.collectedCents || 0), 0),
+        });
+      }
+      const pieLabel = group => group.start === group.end ? group.start : group.start + ' – ' + group.end;
+      function el(tag, attrs, parent) {
+        const node = document.createElementNS(ns, tag);
+        Object.entries(attrs || {}).forEach(([key, value]) => node.setAttribute(key, String(value)));
+        (parent || svg).appendChild(node);
+        return node;
+      }
+      function label(index) {
+        const row = rows[index];
+        if (row.start && row.end && row.start !== row.end) return row.start + ' – ' + row.end;
+        return row.start || row.date || row.label || ('Interval ' + (index + 1));
+      }
+      function choose(index) {
+        selected = index;
+        selectedPie = -1;
+        const row = rows[index];
+        const date = document.querySelector('[data-chart-date]');
+        const focus = document.querySelector('[data-chart-focus]');
+        const invoiced = document.querySelector('[data-chart-invoiced]');
+        const collected = document.querySelector('[data-chart-collected]');
+        if (date) date.textContent = 'Selected interval';
+        if (focus) focus.textContent = label(index);
+        if (invoiced) invoiced.textContent = money(row.invoicedCents);
+        if (collected) collected.textContent = money(row.collectedCents);
+        draw();
+        svg.querySelector('[data-index="' + index + '"]')?.focus({ preventScroll: true });
+      }
+      function choosePie(group) {
+        selectedPie = group.index;
+        const date = document.querySelector('[data-chart-date]');
+        const focus = document.querySelector('[data-chart-focus]');
+        const invoiced = document.querySelector('[data-chart-invoiced]');
+        const collected = document.querySelector('[data-chart-collected]');
+        if (date) date.textContent = 'Selected interval group';
+        if (focus) focus.textContent = pieLabel(group);
+        if (invoiced) invoiced.textContent = money(group.invoicedCents);
+        if (collected) collected.textContent = money(group.collectedCents);
+        draw();
+        svg.querySelector('[data-index="' + group.index + '"]')?.focus({ preventScroll: true });
+      }
+      function activate(node, index) {
+        node.dataset.index = String(index);
+        node.setAttribute('tabindex', '0'); node.setAttribute('role', 'button');
+        node.setAttribute('aria-label', label(index) + ': invoiced ' + money(rows[index].invoicedCents) + ', collected ' + money(rows[index].collectedCents));
+        node.addEventListener('click', () => choose(index));
+        node.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(index); } });
+      }
+      function draw(animate = false) {
+        svg.replaceChildren();
+        pieLegend?.replaceChildren();
+        const shareView = mode === 'pie' || mode === 'donut';
+        if (pieLegend) pieLegend.hidden = !shareView;
+        const narrow = window.matchMedia('(max-width: 540px)').matches;
+        const availableWidth = root.clientWidth;
+        const W = shareView ? Math.max(200, Math.min(availableWidth, window.innerWidth - 80)) : Math.max(availableWidth, rows.length * 30 + 64);
+        const H = narrow && shareView ? 260 : 350, left = narrow ? 46 : 66, right = narrow ? 12 : 24, top = 18, bottom = 46;
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svg.setAttribute('width', String(W));
+        svg.setAttribute('height', String(H));
+        svg.style.width = `${W}px`;
+        svg.style.maxWidth = shareView ? '100%' : 'none';
+        const plotW = W - left - right, plotH = H - top - bottom;
+        const values = shareView
+          ? pieGroups.map(group => Number(group[series] || 0))
+          : rows.flatMap(row => [Number(row.invoicedCents || 0), Number(row.collectedCents || 0)]);
+        const max = Math.max(0, ...values);
+        if (max <= 0) {
+          const t = el('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', class: 'chart-empty-label' });
+          t.textContent = shareView ? `No ${series === 'invoicedCents' ? 'invoiced' : 'collected'} activity in this period` : 'No transaction activity in this period'; return;
+        }
+        if (shareView) {
+          const positive = pieGroups.map(group => ({ ...group, value: Number(group[series] || 0) })).filter(item => item.value > 0);
+          const total = positive.reduce((sum, item) => sum + item.value, 0);
+          const cx = W / 2, cy = H / 2, radius = narrow ? Math.min(105, W * .34) : 132;
+          let angle = -Math.PI / 2;
+          const colorAt = index => `hsl(${(202 + index * 137.508) % 360} 42% ${index % 2 ? 42 : 52}%)`;
+          positive.forEach((item, pos) => {
+            const sweep = item.value / total * Math.PI * 2;
+            const end = angle + sweep;
+            const x1 = cx + radius * Math.cos(angle), y1 = cy + radius * Math.sin(angle);
+            const x2 = cx + radius * Math.cos(end), y2 = cy + radius * Math.sin(end);
+            const path = positive.length === 1
+              ? el('circle', { cx, cy, r: radius, fill: colorAt(pos), class: 'chart-mark chart-slice' + (selectedPie === item.index ? ' chart-selected' : ''), 'data-index': item.index })
+              : el('path', { d: `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${sweep > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`, fill: colorAt(pos), class: 'chart-mark chart-slice' + (selectedPie === item.index ? ' chart-selected' : ''), 'data-index': item.index });
+            if (!animate || reducedMotion) path.style.animation = 'none';
+            const title = el('title', {}, path); title.textContent = `${pieLabel(item)} · ${money(item.value)} (${(item.value / total * 100).toFixed(1)}%)`;
+            path.setAttribute('tabindex', '0'); path.setAttribute('role', 'button');
+            path.setAttribute('aria-label', title.textContent);
+            path.addEventListener('click', () => choosePie(item));
+            path.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choosePie(item); } });
+            angle = end;
+            if (pieLegend) {
+              const button = document.createElement('button');
+              button.type = 'button'; button.className = 'chart-pie-legend-item';
+              button.setAttribute('aria-pressed', String(selectedPie === item.index));
+              button.setAttribute('aria-label', `${pieLabel(item)}: ${money(item.value)}, ${(item.value / total * 100).toFixed(1)}% of ${series === 'invoicedCents' ? 'invoiced' : 'collected'} total`);
+              const swatch = document.createElement('span'); swatch.className = 'chart-pie-swatch'; swatch.style.backgroundColor = colorAt(pos);
+              const name = document.createElement('span'); name.textContent = pieLabel(item);
+              const amount = document.createElement('strong'); amount.textContent = `${money(item.value)} · ${(item.value / total * 100).toFixed(1)}%`;
+              button.append(swatch, name, amount);
+              button.addEventListener('click', () => choosePie(item));
+              pieLegend.appendChild(button);
+            }
+          });
+          if (mode === 'donut') {
+            el('circle', { cx, cy, r: radius * .57, fill: '#fff', class: 'chart-donut-hole' });
+            const amount = el('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', class: 'chart-donut-label' });
+            amount.textContent = money(total);
+            const caption = el('text', { x: cx, y: cy + 19, 'text-anchor': 'middle', class: 'chart-donut-caption' });
+            caption.textContent = series === 'invoicedCents' ? 'Invoiced total' : 'Collected total';
+          }
+          return;
+        }
+        const ticks = 4;
+        for (let i = 0; i <= ticks; i++) {
+          const y = top + plotH * i / ticks;
+          el('line', { x1: left, x2: W - right, y1: y, y2: y, class: 'chart-gridline' });
+          const text = el('text', { x: left - 10, y: y + 4, 'text-anchor': 'end', class: 'chart-axis-label' });
+          text.textContent = money(max * (ticks - i) / ticks);
+        }
+        const step = plotW / rows.length;
+        const xAt = index => left + step * (index + .5);
+        rows.forEach((row, index) => {
+          const x = xAt(index);
+          const tick = el('text', { x, y: H - 14, 'text-anchor': 'middle', class: 'chart-axis-label' });
+          const tickLabel = row.label || row.date || row.start || '';
+          tick.textContent = row.label ? tickLabel : narrow ? tickLabel.slice(8, 10) : tickLabel.slice(5);
+          if (mode === 'columns') {
+            const groupW = Math.min(30, step * .34), gap = Math.min(6, step * .07);
+            ['invoicedCents', 'collectedCents'].forEach((key, seriesIndex) => {
+              const value = Number(row[key] || 0), height = value / max * plotH;
+              const xBar = x + (seriesIndex ? gap / 2 : -groupW - gap / 2);
+              const rect = el('rect', { x: xBar, y: top + plotH - height, width: groupW, height, rx: 2, fill: colors[key], class: 'chart-mark chart-bar' + (selected === index ? ' chart-selected' : '') });
+              if (!animate || reducedMotion) rect.style.animation = 'none';
+              const title = el('title', {}, rect); title.textContent = `${label(index)} · ${key === 'invoicedCents' ? 'Invoiced' : 'Collected'}: ${money(value)}`;
+              activate(rect, index);
+            });
+          }
+        });
+        if (mode === 'lines' || mode === 'area') ['collectedCents', 'invoicedCents'].forEach(key => {
+          const points = rows.map((row, index) => [xAt(index), top + plotH - Number(row[key] || 0) / max * plotH]);
+          const pointString = points.map(point => point.join(',')).join(' ');
+          if (mode === 'area') {
+            const area = el('polygon', { points: `${xAt(0)},${top + plotH} ${pointString} ${xAt(rows.length - 1)},${top + plotH}`, fill: colors[key], class: 'chart-area' });
+            if (!animate || reducedMotion) area.style.animation = 'none';
+          }
+          const hitLine = el('polyline', { points: pointString, fill: 'none', stroke: 'transparent', 'stroke-width': 18, class: 'chart-hit-line' });
+          hitLine.setAttribute('tabindex', '0'); hitLine.setAttribute('role', 'button');
+          hitLine.setAttribute('aria-label', `Select the nearest interval on the ${key === 'invoicedCents' ? 'invoiced' : 'collected'} trend line`);
+          hitLine.addEventListener('click', event => {
+            const bounds = svg.getBoundingClientRect();
+            const localX = (event.clientX - bounds.left) / bounds.width * W;
+            choose(Math.max(0, Math.min(rows.length - 1, Math.floor((localX - left) / step))));
+          });
+          hitLine.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(selected >= 0 ? selected : 0); } });
+          const line = el('polyline', { points: pointString, fill: 'none', stroke: colors[key], 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'chart-line' });
+          line.style.pointerEvents = 'none';
+          const length = line.getTotalLength();
+          if (animate && !reducedMotion) {
+            line.style.strokeDasharray = String(length); line.style.strokeDashoffset = String(length);
+            requestAnimationFrame(() => { line.style.transition = 'stroke-dashoffset 720ms cubic-bezier(.2,.75,.25,1)'; line.style.strokeDashoffset = '0'; });
+          }
+          points.forEach((point, index) => {
+            const circle = el('circle', { cx: point[0], cy: point[1], r: selected === index ? 7 : 4.5, fill: colors[key], class: 'chart-mark chart-point' });
+            const title = el('title', {}, circle); title.textContent = `${label(index)} · ${key === 'invoicedCents' ? 'Invoiced' : 'Collected'}: ${money(rows[index][key])}`;
+            activate(circle, index);
+          });
+        });
+      }
+      document.querySelectorAll('[data-chart-mode]').forEach(button => button.addEventListener('click', () => {
+        mode = button.dataset.chartMode;
+        selected = -1; selectedPie = -1;
+        document.querySelector('[data-chart-date]').textContent = 'Selected interval';
+        document.querySelector('[data-chart-focus]').textContent = 'Choose a chart point';
+        document.querySelector('[data-chart-invoiced]').textContent = '$0.00';
+        document.querySelector('[data-chart-collected]').textContent = '$0.00';
+        document.querySelectorAll('[data-chart-mode]').forEach(item => { const active = item === button; item.classList.toggle('is-active', active); item.setAttribute('aria-pressed', String(active)); });
+        const seriesGroup = document.querySelector('.chart-series-toggle'); if (seriesGroup) seriesGroup.hidden = mode !== 'pie' && mode !== 'donut';
+        draw(true);
+      }));
+      document.querySelectorAll('[data-chart-series]').forEach(button => button.addEventListener('click', () => {
+        series = button.dataset.chartSeries;
+        document.querySelectorAll('[data-chart-series]').forEach(item => { const active = item === button; item.classList.toggle('is-active', active); item.setAttribute('aria-pressed', String(active)); });
+        draw(true);
+      }));
+      draw(true);
+      window.addEventListener('resize', () => draw());
+    })();
+
+    (function initOrderComposer() {
+      const form = document.querySelector('[data-order-composer]');
+      if (!form) return;
+      const lines = form.querySelector('[data-order-lines]');
+      const template = form.querySelector('[data-order-line-template]');
+      const add = form.querySelector('[data-add-order-line]');
+      const customer = form.querySelector('[data-order-customer]');
+      const maxLines = Math.min(12, Math.max(0, (form.querySelector('[data-order-product]')?.options.length || 1) - 1));
+      const formatMoney = cents => '$' + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      function refresh() {
+        const rows = Array.from(lines.querySelectorAll('[data-order-line]'));
+        let total = 0, units = 0, count = 0;
+        updateProductChoices(lines, '[data-order-product]');
+        rows.forEach((row, index) => {
+          row.querySelector('.order-line-number').textContent = String(index + 1).padStart(2, '0');
+          const remove = row.querySelector('[data-remove-order-line]'); remove.disabled = rows.length === 1;
+          const product = row.querySelector('[data-order-product]'), quantity = row.querySelector('[data-order-quantity]');
+          const price = Number(product.selectedOptions[0]?.dataset.priceCents || 0), qty = Number(quantity.value);
+          const amount = price * qty;
+          const valid = product.value && Number.isSafeInteger(qty) && qty >= 1 && Number.isSafeInteger(amount);
+          row.querySelector('[data-order-line-total]').textContent = valid ? formatMoney(amount) : '—';
+          if (valid) { total += amount; units += qty; count += 1; }
+        });
+        form.querySelector('[data-summary-customer]').textContent = customer.selectedOptions[0]?.textContent.trim() || 'Not selected';
+        form.querySelector('[data-summary-total]').textContent = formatMoney(total);
+        form.querySelector('[data-summary-lines]').textContent = String(count);
+        form.querySelector('[data-summary-units]').textContent = String(units);
+        add.disabled = rows.length >= maxLines;
+      }
+      add.addEventListener('click', () => {
+        if (lines.querySelectorAll('[data-order-line]').length >= maxLines) return;
+        const index = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        const fragment = template.content.cloneNode(true);
+        const row = fragment.querySelector('[data-order-line]');
+        row.querySelectorAll('select,input').forEach(control => {
+          control.name = control.name.replace('__INDEX__', index);
+          const id = (control.name.includes('[productId]') ? 'productId-' : 'quantity-') + index;
+          control.id = id; row.querySelector(`label[for="${control.id}"]`)?.removeAttribute('for');
+          control.previousElementSibling?.setAttribute('for', id);
+        });
+        lines.appendChild(fragment); refresh();
+        lines.lastElementChild.querySelector('select')?.focus();
+      });
+      lines.addEventListener('click', event => { const button = event.target.closest('[data-remove-order-line]'); if (button && lines.querySelectorAll('[data-order-line]').length > 1) { button.closest('[data-order-line]').remove(); refresh(); } });
+      lines.addEventListener('input', refresh);
+      lines.addEventListener('change', event => {
+        const product = event.target.closest('[data-order-product]');
+        if (product?.value && Array.from(lines.querySelectorAll('[data-order-product]')).some(other => other !== product && other.value === product.value)) {
+          product.setCustomValidity('This product is already on the order. Adjust its quantity instead.');
+          product.reportValidity(); product.value = '';
+        }
+        product?.setCustomValidity(''); refresh();
+      });
+      customer.addEventListener('change', refresh);
+      refresh();
+    })();
   </script>
 </body>
 </html>

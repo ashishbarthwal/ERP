@@ -1,44 +1,44 @@
 import type { NextFunction, Request, Response } from 'express';
 import { verifyToken } from '../lib/jwt';
+import { prisma } from '../lib/prisma';
+import { asRole, can } from '../lib/permissions';
 
 const SESSION_COOKIE = 'erp_session';
 
 export const setSessionCookie = (res: Response, token: string) => {
-  res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', maxAge: 12 * 60 * 60 * 1000 });
+  res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 12 * 60 * 60 * 1000 });
 };
 
 export const clearSessionCookie = (res: Response) => {
-  res.clearCookie(SESSION_COOKIE);
+  res.clearCookie(SESSION_COOKIE, { sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
 };
 
 // Cookie-based equivalent of middleware/auth.middleware.ts's requireAuth, for the
 // server-rendered web UI (browsers can't easily attach a Bearer header on navigation).
 export const requireWebAuth = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.cookies?.[SESSION_COOKIE];
-  if (!token) {
-    return res.redirect('/login');
-  }
-
-  try {
-    req.user = verifyToken(token);
-    next();
-  } catch {
-    clearSessionCookie(res);
-    res.redirect('/login');
-  }
+  if (!req.user) return res.redirect('/login');
+  next();
 };
 
 // Populates res.locals.isAuthenticated for layout/nav rendering without forcing a redirect.
-export const attachOptionalUser = (req: Request, res: Response, next: NextFunction) => {
+export const attachOptionalUser = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.cookies?.[SESSION_COOKIE];
   if (token) {
     try {
-      req.user = verifyToken(token);
-    } catch {
+      const payload = verifyToken(token);
+      const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { name: true, role: true } });
+      if (!user) clearSessionCookie(res);
+      else {
+        req.user = { userId: payload.userId, role: asRole(user.role) };
+        res.locals.user = { name: user.name, role: req.user.role };
+      }
+    } catch (error) {
+      if (!(error instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name))) return next(error);
       clearSessionCookie(res);
     }
   }
   res.locals.isAuthenticated = Boolean(req.user);
+  res.locals.can = (permission: Parameters<typeof can>[1]) => can(req.user?.role, permission);
   const section = req.path.split('/')[1];
   const titles: Record<string, string> = {
     dashboard: 'Overview',
@@ -49,7 +49,15 @@ export const attachOptionalUser = (req: Request, res: Response, next: NextFuncti
     invoices: 'Invoices',
     suppliers: 'Suppliers',
     'purchase-orders': 'Purchase orders',
+    users: 'Users',
+    register: 'Users',
   };
   res.locals.pageTitle = titles[section] ?? (section ? section.charAt(0).toUpperCase() + section.slice(1) : 'Welcome');
+  next();
+};
+
+export const requireWebPermission = (permission: Parameters<typeof can>[1]) => (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) return res.redirect('/login');
+  if (!can(req.user.role, permission)) return res.status(403).render('forbidden');
   next();
 };

@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
+import type { Role } from './permissions';
 
 export interface AuthTokenPayload {
   userId: string;
-  role: 'ADMIN' | 'STAFF';
+  role: Role;
 }
 
 const getSecret = (): string => {

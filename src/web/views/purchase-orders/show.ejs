@@ -3,12 +3,13 @@
   <article class="document-page">
     <header class="document-header">
       <div class="document-heading">
-        <div><p class="eyebrow"><a href="/purchase-orders">Purchase orders</a> / Document</p><h1>Purchase order <span class="document-id"><%= purchaseOrder.id.slice(0, 12) %></span></h1></div>
+        <div><p class="eyebrow"><a href="/purchase-orders">Purchase orders</a> / Document</p><h1>Purchase order <span class="document-id"><%= purchaseOrder.id.slice(0, 12) %></span><span class="print-only print-document-id"><%= purchaseOrder.id %></span></h1></div>
         <div class="document-actions" data-testid="purchase-order-actions">
-          <% if (purchaseOrder.status === 'DRAFT') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/submit" method="post"><button type="submit">Submit order</button></form><% } %>
-          <% if (purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/receive" method="post"><button type="submit">Receive all stock</button></form><% } %>
-          <% if (purchaseOrder.status === 'DRAFT' || purchaseOrder.status === 'ORDERED') { %><form action="/purchase-orders/<%= purchaseOrder.id %>/cancel" method="post"><button class="button ghost" type="submit">Cancel purchase</button></form><% } %>
-          <% if (purchaseOrder.status === 'RECEIVED') { %><a class="button secondary" href="/products/<%= purchaseOrder.items[0].product.id %>">View stock ledger</a><% } %>
+          <% if (purchaseOrder.status === 'DRAFT' && locals.can?.('purchases.write')) { %><form action="/purchase-orders/<%= purchaseOrder.id %>/submit" method="post" data-confirm="Submit this purchase order to the supplier workflow?"><%- include('../partials/csrf') %><button type="submit">Submit order</button></form><% } %>
+          <% if (purchaseOrder.status === 'ORDERED' && locals.can?.('purchases.receive')) { %><form action="/purchase-orders/<%= purchaseOrder.id %>/receive" method="post" data-confirm="Receive all items on this purchase order? On-hand stock will increase."><%- include('../partials/csrf') %><button type="submit">Receive all stock</button></form><% } %>
+          <% if ((purchaseOrder.status === 'DRAFT' || purchaseOrder.status === 'ORDERED') && locals.can?.('purchases.write')) { %><form action="/purchase-orders/<%= purchaseOrder.id %>/cancel" method="post" data-confirm="Cancel this purchase order? This action cannot be undone." data-confirm-tone="danger"><%- include('../partials/csrf') %><button class="button ghost" type="submit">Cancel purchase</button></form><% } %>
+          <% if (purchaseOrder.status === 'RECEIVED') { %><a class="button secondary" href="#contents">Review received items</a><% } %>
+          <button class="button ghost" type="button" data-print-document aria-label="Print purchase order">Print</button>
         </div>
       </div>
       <dl class="document-facts">
@@ -23,9 +24,9 @@
     </header>
     <nav class="document-tabs" aria-label="Purchase order sections"><a href="#contents">Contents</a><a href="#details">Details</a></nav>
     <section class="document-section" id="contents">
-      <h2>Line items</h2><p class="section-note">Stock is added only when the order is received. Unit costs are captured on the document.</p><p class="table-scroll-hint">Swipe the table sideways for quantity and totals.</p>
-      <div class="table-wrap"><table class="table-plain"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit cost</th><th class="numeric">Line total</th></tr></thead><tbody>
-        <% purchaseOrder.items.forEach(function(item, index) { %><tr data-testid="purchase-order-item"><td><%= index + 1 %></td><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td class="mono"><%= item.product.sku %></td><td class="numeric"><%= item.quantity %></td><td class="numeric"><%= money(item.unitCostCents) %></td><td class="numeric"><strong><%= money(item.quantity * item.unitCostCents) %></strong></td></tr><% }) %>
+      <h2>Line items</h2><p class="section-note"><%= purchaseOrder.status === 'RECEIVED' ? 'Stock was added at receipt. Open any product below to inspect its own movement ledger.' : 'Stock is added only when the order is received. Unit costs are captured on the document.' %></p>
+      <div class="table-wrap"><table class="table-plain document-lines"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit cost</th><th class="numeric">Line total</th></tr></thead><tbody>
+        <% purchaseOrder.items.forEach(function(item, index) { %><tr data-testid="purchase-order-item"><td data-label="Line"><%= index + 1 %></td><td data-label="Product"><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td data-label="SKU" class="mono"><%= item.product.sku %></td><td data-label="Quantity" class="numeric"><%= item.quantity %></td><td data-label="Unit cost" class="numeric"><%= money(item.unitCostCents) %></td><td data-label="Line total" class="numeric"><strong><%= money(item.quantity * item.unitCostCents) %></strong></td></tr><% }) %>
       </tbody></table></div>
       <div class="document-total"><div><span><%= purchaseOrder.items.length %> product lines · <%= units %> units</span><strong><%= money(total) %></strong></div><div><strong>Order total</strong><strong><%= money(total) %></strong></div></div>
     </section>

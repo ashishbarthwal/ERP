@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requireAdmin } from '../../middleware/auth.middleware';
 import { loginSchema, registerSchema } from './auth.types';
 import { getCurrentUser, loginUser, registerUser } from './auth.service';
 
@@ -8,10 +8,11 @@ export const authRouter = Router();
 
 authRouter.post(
   '/register',
+  requireAuth,
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const input = registerSchema.parse(req.body);
-    const result = await registerUser(input);
-    res.status(201).json(result);
+    res.status(201).json({ user: await registerUser(input) });
   }),
 );
 

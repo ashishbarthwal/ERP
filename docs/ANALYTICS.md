@@ -6,6 +6,13 @@ by creation date; collected value counts payments by posting date; received
 purchase cost counts received purchase orders by receipt date. These events
 can occur on different days and should not be subtracted to infer profit.
 
+The invoicing/collections chart switches between Columns, Lines, Area, Pie,
+and Donut. Pie and Donut show the selected measure's share across interval
+groups; use their Invoiced/Collected control to change the measure. Select a
+mark or legend item for its exact interval and values. Longer periods combine
+adjacent buckets into at most five share groups. Charts remain read-only and
+do not change the underlying transactions.
+
 Open receivables, ordered purchase commitments and low-stock alerts are
 **current snapshots**, unaffected by the period selector. Receivables are
 unpaid invoice amounts after partial payments. The overdue figure is the

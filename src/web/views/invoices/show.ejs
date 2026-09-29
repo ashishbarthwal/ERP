@@ -1,10 +1,10 @@
-<% const money = cents => `$${(cents / 100).toFixed(2)}`; const paidCents = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); const outstandingCents = invoice.totalCents - paidCents; const paymentProgress = invoice.totalCents ? Math.max(0, Math.min(100, Math.round(paidCents / invoice.totalCents * 100))) : 0; %>
+<% const money = cents => `$${(cents / 100).toFixed(2)}`; const paidCents = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); const outstandingCents = invoice.totalCents - paidCents; const paymentProgress = invoice.totalCents ? Math.max(0, Math.min(100, Math.floor(paidCents / invoice.totalCents * 100))) : 0; %>
 <%- include('../partials/header') %>
   <article class="document-page">
     <header class="document-header">
       <div class="document-heading">
-        <div><p class="eyebrow"><a href="/invoices">Invoices</a> / Accounts receivable</p><h1>Invoice <span class="document-id"><%= invoice.id.slice(0, 12) %></span></h1></div>
-        <div class="document-actions"><a class="button secondary" href="/orders/<%= invoice.order.id %>">Open sales order</a><% if (invoice.status === 'PENDING') { %><a class="button" href="#payments">Record payment</a><% } %></div>
+        <div><p class="eyebrow"><a href="/invoices">Invoices</a> / Accounts receivable</p><h1>Invoice <span class="document-id"><%= invoice.id.slice(0, 12) %></span><span class="print-only print-document-id"><%= invoice.id %></span></h1></div>
+        <div class="document-actions"><a class="button secondary" href="/orders/<%= invoice.order.id %>">Open sales order</a><% if (invoice.status === 'PENDING' && locals.can?.('payments.write')) { %><a class="button" href="#payments">Record payment</a><% } %><button class="button ghost" type="button" data-print-document aria-label="Print invoice">Print</button></div>
       </div>
       <dl class="document-facts">
         <div><dt>Customer</dt><dd><a href="/customers/<%= invoice.order.customer.id %>"><%= invoice.order.customer.name %></a></dd></div>
@@ -12,23 +12,24 @@
         <div><dt>Paid</dt><dd data-testid="invoice-paid"><%= money(paidCents) %></dd></div>
         <div><dt>Outstanding</dt><dd data-testid="invoice-outstanding"><%= money(outstandingCents) %> <span class="status status-<%= invoice.status.toLowerCase() %>" data-testid="invoice-status"><%= invoice.status %></span></dd></div>
       </dl>
-      <div class="document-progress"><span>Payment progress</span><div class="progress-track" role="progressbar" aria-label="Invoice payment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= paymentProgress %>"><span class="progress-segment <%= invoice.status === 'PAID' ? 'progress-done' : 'progress-ready' %>" style="width:<%= paymentProgress %>%"></span></div><span><%= paymentProgress %>% paid</span></div>
+      <div class="document-progress"><span>Payment progress</span><div class="progress-track" role="progressbar" aria-label="Invoice payment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= paymentProgress %>" aria-valuetext="<%= money(paidCents) %> paid of <%= money(invoice.totalCents) %>"><span class="progress-segment <%= invoice.status === 'PAID' ? 'progress-done' : 'progress-ready' %>" style="width:<%= paymentProgress %>%"></span></div><span><%= money(paidCents) %> of <%= money(invoice.totalCents) %> paid</span></div>
     </header>
     <nav class="document-tabs" aria-label="Invoice sections"><a href="#contents">Contents</a><a href="#payments">Payments</a><a href="#details">Details</a></nav>
     <section class="document-section" id="contents">
-      <h2>Invoice lines</h2><p class="section-note">Prices are captured at billing; tax and discount are not modelled in this demo.</p><p class="table-scroll-hint">Swipe the table sideways for quantity and totals.</p>
-      <div class="table-wrap"><table class="table-plain"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit price</th><th class="numeric">Line total</th></tr></thead><tbody>
-        <% invoice.items.forEach(function(item, index) { %><tr data-testid="invoice-line"><td><%= index + 1 %></td><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td class="mono"><%= item.product.sku %></td><td class="numeric"><%= item.quantity %></td><td class="numeric"><%= money(item.unitPriceCents) %></td><td class="numeric"><strong><%= money(item.quantity * item.unitPriceCents) %></strong></td></tr><% }) %>
+      <h2>Invoice lines</h2><p class="section-note">Prices are captured at billing; tax and discount are not modelled in this demo.</p>
+      <div class="table-wrap"><table class="table-plain document-lines"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit price</th><th class="numeric">Line total</th></tr></thead><tbody>
+        <% invoice.items.forEach(function(item, index) { %><tr data-testid="invoice-line"><td data-label="Line"><%= index + 1 %></td><td data-label="Product"><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td data-label="SKU" class="mono"><%= item.product.sku %></td><td data-label="Quantity" class="numeric"><%= item.quantity %></td><td data-label="Unit price" class="numeric"><%= money(item.unitPriceCents) %></td><td data-label="Line total" class="numeric"><strong><%= money(item.quantity * item.unitPriceCents) %></strong></td></tr><% }) %>
       </tbody></table></div>
       <div class="document-total"><div><span>Line subtotal</span><strong><%= money(invoice.totalCents) %></strong></div><div><strong>Invoice total</strong><strong><%= money(invoice.totalCents) %></strong></div></div>
     </section>
     <section class="document-section" id="payments">
       <h2>Payment history</h2><p class="section-note"><%= invoice.payments.length %> recorded transaction<%= invoice.payments.length === 1 ? '' : 's' %></p>
-      <% if (invoice.payments.length) { %><div class="table-wrap"><table class="table-plain"><thead><tr><th>Recorded</th><th>Method</th><th class="numeric">Amount</th></tr></thead><tbody><% invoice.payments.forEach(function(payment) { %><tr data-testid="payment-record"><td><%= new Date(payment.createdAt).toLocaleString() %></td><td><%= payment.method %></td><td class="numeric"><%= money(payment.amountCents) %></td></tr><% }) %></tbody></table></div><% } else { %><p class="section-note" style="margin-top:12px">No payments recorded yet.</p><% } %>
-      <% if (invoice.status === 'PENDING') { %>
+      <% if (invoice.payments.length) { %><div class="table-wrap"><table class="table-plain payment-lines"><thead><tr><th>Recorded</th><th>Method</th><th class="numeric">Amount</th></tr></thead><tbody><% invoice.payments.forEach(function(payment) { %><tr data-testid="payment-record"><td data-label="Recorded"><%= new Date(payment.createdAt).toLocaleString() %></td><td data-label="Method"><%= payment.method %></td><td data-label="Amount" class="numeric"><%= money(payment.amountCents) %></td></tr><% }) %></tbody></table></div><% } else { %><p class="section-note" style="margin-top:12px">No payments recorded yet.</p><% } %>
+      <% if (invoice.status === 'PENDING' && locals.can?.('payments.write')) { %>
         <form action="/invoices/<%= invoice.id %>/payments" method="post" data-testid="record-payment-form" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line)">
-          <div><label for="amountDollars">Payment amount ($)</label><input type="text" inputmode="decimal" id="amountDollars" name="amountDollars" pattern="[0-9]+(\.[0-9]{1,2})?" value="<%= (outstandingCents / 100).toFixed(2) %>" required /><p class="helper">Maximum outstanding: <%= money(outstandingCents) %>.</p></div>
-          <div><label for="method">Payment method</label><select id="method" name="method"><option value="bank-transfer">Bank transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="manual">Other / manual</option></select></div>
+          <%- include('../partials/csrf') %>
+          <div><label for="amountDollars">Payment amount ($)</label><input type="text" inputmode="decimal" id="amountDollars" name="amountDollars" pattern="[0-9]+(\.[0-9]{1,2})?" value="<%= paymentDraft ? paymentDraft.amountDollars : (outstandingCents / 100).toFixed(2) %>" required <% if (paymentFieldError) { %>aria-invalid="true" aria-describedby="payment-amount-error" autofocus<% } %> /><p class="helper">Maximum outstanding: <%= money(outstandingCents) %>.</p><% if (paymentFieldError) { %><p class="field-error" id="payment-amount-error"><%= paymentFieldError %></p><% } %></div>
+          <div><label for="method">Payment method</label><select id="method" name="method"><option value="bank-transfer" <%= !paymentDraft || paymentDraft.method === 'bank-transfer' ? 'selected' : '' %>>Bank transfer</option><option value="card" <%= paymentDraft?.method === 'card' ? 'selected' : '' %>>Card</option><option value="cash" <%= paymentDraft?.method === 'cash' ? 'selected' : '' %>>Cash</option><option value="manual" <%= paymentDraft?.method === 'manual' ? 'selected' : '' %>>Other / manual</option></select></div>
           <button type="submit">Record payment</button>
         </form>
       <% } %>

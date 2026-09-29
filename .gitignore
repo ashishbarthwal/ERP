@@ -4,3 +4,5 @@ dist/
 prisma/dev.db
 prisma/dev.db-journal
 *.log
+/things-to-add/
+.neon

@@ -1,0 +1,9 @@
+<%- include('../partials/header') %>
+  <section class="page-heading"><div><p class="eyebrow">Administration / access</p><h1>Workspace users</h1><p>Role-based access for the current team.</p></div><a class="button" href="/register">Add user</a></section>
+  <section class="list-surface" aria-label="Workspace users">
+    <div class="list-toolbar"><strong><%= users.length %> team member<%= users.length === 1 ? '' : 's' %></strong><span class="section-note">Access is managed by role</span></div>
+    <% if (users.length) { %><div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Added</th></tr></thead><tbody>
+      <% users.forEach(function(user) { %><tr><td data-label="Name"><strong><%= user.name %></strong></td><td data-label="Email"><%= user.email %></td><td data-label="Role"><span class="status role-badge"><%= user.role %></span></td><td data-label="Added"><%= new Date(user.createdAt).toLocaleDateString('en-US') %></td></tr><% }) %>
+    </tbody></table></div><% } else { %><div class="list-empty"><strong>No users yet</strong>Create a workspace user to begin assigning access.</div><% } %>
+  </section>
+<%- include('../partials/footer') %>

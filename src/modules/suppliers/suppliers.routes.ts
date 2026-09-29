@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import { createSupplier, getSupplier, listSuppliers } from './suppliers.service';
 import { createSupplierSchema } from './suppliers.types';
@@ -14,6 +14,7 @@ suppliersRouter.get(
 
 suppliersRouter.post(
   '/',
+  requirePermission('suppliers.write'),
   asyncHandler(async (req, res) => {
     const input = createSupplierSchema.parse(req.body);
     res.status(201).json(await createSupplier(input));

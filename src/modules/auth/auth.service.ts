@@ -1,12 +1,9 @@
 import { prisma } from '../../lib/prisma';
 import { hashPassword, verifyPassword } from '../../lib/password';
-import { signToken, type AuthTokenPayload } from '../../lib/jwt';
+import { signToken } from '../../lib/jwt';
+import { asRole } from '../../lib/permissions';
 import { conflict, unauthorized } from '../../lib/errors';
 import type { LoginInput, RegisterInput } from './auth.types';
-
-// Prisma stores role as a plain string (SQLite has no enum support); this narrows it
-// back to the literal union our application logic relies on.
-const asRole = (role: string): AuthTokenPayload['role'] => (role === 'ADMIN' ? 'ADMIN' : 'STAFF');
 
 export const registerUser = async (input: RegisterInput) => {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -16,11 +13,10 @@ export const registerUser = async (input: RegisterInput) => {
 
   const passwordHash = await hashPassword(input.password);
   const user = await prisma.user.create({
-    data: { email: input.email, name: input.name, passwordHash },
+    data: { email: input.email, name: input.name, passwordHash, role: input.role },
   });
 
-  const token = signToken({ userId: user.id, role: asRole(user.role) });
-  return { token, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
 };
 
 export const loginUser = async (input: LoginInput) => {

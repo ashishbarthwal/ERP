@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
 import { createProductSchema } from './products.types';
 import { createProduct, getProduct, listProducts } from './products.service';
 
@@ -16,6 +16,7 @@ productsRouter.get(
 
 productsRouter.post(
   '/',
+  requirePermission('products.write'),
   asyncHandler(async (req, res) => {
     const input = createProductSchema.parse(req.body);
     res.status(201).json(await createProduct(input));

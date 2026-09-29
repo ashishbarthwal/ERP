@@ -12,10 +12,22 @@ import { purchasingRouter } from './modules/purchasing/purchasing.routes';
 import { errorMiddleware } from './middleware/error.middleware';
 import { webRouter, webViewsPath } from './web/web.routes';
 import { attachOptionalUser } from './web/web.middleware';
+import { csrfProtection } from './web/csrf.middleware';
+import { prisma } from './lib/prisma';
 
 export const createApp = () => {
   const app = express();
-  app.use(cors());
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
+  const allowedOrigins = new Set((process.env.CORS_ORIGINS ?? '').split(',').map(origin => origin.trim()).filter(Boolean));
+  // Browser clients are same-origin by default; explicitly allow trusted external API frontends.
+  app.use('/api', cors({ origin: (origin, callback) => callback(null, Boolean(origin && allowedOrigins.has(origin))) }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
@@ -24,6 +36,16 @@ export const createApp = () => {
   app.set('views', webViewsPath);
 
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  // Keep process liveness separate from database readiness for deployment health checks.
+  app.get('/ready', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ status: 'ready' });
+    } catch {
+      res.status(503).json({ status: 'unavailable' });
+    }
+  });
 
   app.use('/api/auth', authRouter);
   app.use('/api/customers', customersRouter);
@@ -36,7 +58,7 @@ export const createApp = () => {
 
   // Server-rendered web UI (Playwright's target): cookie-session auth, not the JWT
   // bearer-header auth the /api/* routes above use.
-  app.use(attachOptionalUser, webRouter);
+  app.use(attachOptionalUser, csrfProtection, webRouter);
 
   // Must be registered last: catches errors thrown/forwarded by every router above.
   app.use(errorMiddleware);

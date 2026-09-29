@@ -1,20 +1,20 @@
-<% const money = cents => `$${(cents / 100).toFixed(2)}`; const peak = Math.max(1, ...analytics.chart.flatMap(bucket => [bucket.invoicedCents, bucket.collectedCents])); const topProduct = Math.max(1, ...analytics.topProducts.map(product => product.revenueCents)); const orderShare = count => analytics.salesOrderCount ? Math.round(count / analytics.salesOrderCount * 100) : 0; %>
+<% const money = cents => `$${(cents / 100).toFixed(2)}`; const topProduct = Math.max(1, ...analytics.topProducts.map(product => product.revenueCents)); const orderShare = count => analytics.salesOrderCount ? Math.round(count / analytics.salesOrderCount * 100) : 0; %>
 <%- include('partials/header') %>
   <section class="page-heading">
     <div>
       <p class="eyebrow">Operations / reporting</p>
       <h1>Analytics cockpit</h1>
-      <p>Transaction trends and current operational exposure.</p>
+      <p>Explore transaction trends and current operational exposure.</p>
     </div>
     <a class="button" href="/analytics/export.csv?days=<%= analytics.days %>" data-testid="analytics-export">Export daily CSV</a>
   </section>
 
-  <div class="filter-strip" aria-label="Analytics period">
+  <div class="filter-strip analytics-filters" aria-label="Analytics period">
     <strong>Period</strong>
     <% [7, 30, 90].forEach(function(days) { %>
       <a class="button <%= analytics.days === days ? '' : 'ghost' %>" href="/analytics?days=<%= days %>" <% if (analytics.days === days) { %>aria-current="page"<% } %>><%= days %> days</a>
     <% }) %>
-    <span class="section-note"><%= analytics.since.slice(0, 10) %> to <%= analytics.until.slice(0, 10) %> UTC · current snapshots are not period-filtered</span>
+    <span class="section-note"><%= analytics.since.slice(0, 10) %> to <%= analytics.until.slice(0, 10) %> UTC · snapshots show current exposure</span>
   </div>
 
   <section class="stats stats-six" aria-label="Analytics key performance indicators">
@@ -26,34 +26,50 @@
     <div class="stat"><span class="stat-label">Stock alerts</span><strong class="stat-value" data-testid="analytics-low-stock"><%= analytics.lowStockCount %></strong><small>Below 10 usable units</small></div>
   </section>
 
-  <section class="dashboard-grid" aria-label="Analytics reports">
+  <section class="analytics-layout" aria-label="Analytics reports">
     <div class="workbench-column">
-      <section class="panel">
-        <div class="panel-heading"><div><h3>Invoicing and collections</h3><p class="section-note">UTC event totals · <%= analytics.days === 7 ? 'daily' : analytics.days === 30 ? '3-day' : '7-day' %> chart buckets</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:var(--teal)"></i>Invoiced</span><span><i class="legend-dot progress-done"></i>Collected</span></div></div>
-        <% if (analytics.invoicedCents || analytics.collectedCents) { %>
-          <div class="trend-chart" style="--chart-columns:<%= analytics.chart.length %>" data-testid="analytics-chart" role="img" aria-label="Invoiced and collected amounts across <%= analytics.chart.length %> time buckets">
-            <% analytics.chart.forEach(function(bucket) { %>
-              <div class="trend-slot"><div class="trend-pair">
-                <span class="trend-bar" style="height:<%= Math.round(bucket.invoicedCents / peak * 100) %>%" title="<%= bucket.start %> to <%= bucket.end %>: invoiced <%= money(bucket.invoicedCents) %>"></span>
-                <span class="trend-bar cash" style="height:<%= Math.round(bucket.collectedCents / peak * 100) %>%" title="<%= bucket.start %> to <%= bucket.end %>: collected <%= money(bucket.collectedCents) %>"></span>
-              </div><span class="trend-label"><%= bucket.label %></span></div>
-            <% }) %>
+      <section class="panel analytics-chart-panel">
+        <div class="panel-heading analytics-chart-heading">
+          <div><p class="eyebrow">Time series</p><h2>Invoicing & collections</h2><p class="section-note">UTC event totals · <%= analytics.days === 7 ? 'daily' : analytics.days === 30 ? '3-day' : '7-day' %> buckets</p></div>
+          <div class="chart-legend"><span><i class="legend-dot" style="background:var(--teal)"></i>Invoiced</span><span><i class="legend-dot progress-done"></i>Collected</span></div>
+        </div>
+        <div class="chart-toolbar" role="group" aria-label="Chart display">
+          <div class="chart-toggle" role="group" aria-label="Chart type">
+            <button class="chart-control is-active" type="button" data-chart-mode="columns" aria-pressed="true">Columns</button>
+            <button class="chart-control" type="button" data-chart-mode="lines" aria-pressed="false">Lines</button>
+            <button class="chart-control" type="button" data-chart-mode="area" aria-pressed="false">Area</button>
+            <button class="chart-control" type="button" data-chart-mode="pie" aria-pressed="false">Pie</button>
+            <button class="chart-control" type="button" data-chart-mode="donut" aria-pressed="false">Donut</button>
           </div>
-          <p class="section-note" style="margin-top:10px">Invoicing and payment can happen on different dates; these series are not a profit calculation.</p>
-        <% } else { %><p class="section-note">No invoicing or cash collection in this period. Select a longer period to look back.</p><% } %>
+          <div class="chart-toggle chart-series-toggle" role="group" aria-label="Share measure" hidden>
+            <button class="chart-control is-active" type="button" data-chart-series="invoicedCents" aria-pressed="true">Invoiced</button>
+            <button class="chart-control" type="button" data-chart-series="collectedCents" aria-pressed="false">Collected</button>
+          </div>
+        </div>
+        <div class="interactive-chart" data-interactive-chart data-testid="analytics-chart">
+          <svg class="chart-svg" data-chart-svg viewBox="0 0 960 350" role="group" aria-label="Interactive invoicing and collections chart"></svg>
+        </div>
+        <div class="chart-pie-legend-list" data-chart-pie-legend aria-label="Pie chart intervals" hidden></div>
+        <div class="chart-inspector" aria-live="polite" aria-atomic="true" data-chart-inspector>
+          <div><span class="stat-label" data-chart-date>Selected interval</span><strong data-chart-focus>Choose a chart point</strong></div>
+          <div class="chart-inspector-metric"><span><i class="legend-dot" style="background:var(--teal)"></i>Invoiced</span><strong data-chart-invoiced>$0.00</strong></div>
+          <div class="chart-inspector-metric"><span><i class="legend-dot progress-done"></i>Collected</span><strong data-chart-collected>$0.00</strong></div>
+        </div>
+        <p class="chart-footnote">Select a chart mark to inspect its interval. Pie and donut shares combine adjacent buckets into at most five groups for longer periods. Invoicing and payments are separate events; this view does not represent profit.</p>
+        <script type="application/json" data-chart-data><%- JSON.stringify(analytics.chart).replace(/</g, '\\u003c') %></script>
       </section>
 
       <section class="panel">
-        <div class="panel-heading"><div><h3>Daily detail</h3><p class="section-note">Most recent 7 UTC days; the CSV contains every day in the selected period</p></div><a href="/analytics/export.csv?days=<%= analytics.days %>">Download all days</a></div>
-        <div class="table-wrap"><table class="table-plain"><thead><tr><th>Date UTC</th><th class="numeric">Invoiced</th><th class="numeric">Collected</th><th class="numeric">Received cost</th></tr></thead><tbody>
-          <% analytics.trend.slice(-7).reverse().forEach(function(day) { %><tr><td><%= day.date %></td><td class="numeric"><%= money(day.invoicedCents) %></td><td class="numeric"><%= money(day.collectedCents) %></td><td class="numeric"><%= money(day.receivedCostCents) %></td></tr><% }) %>
+        <div class="panel-heading"><div><h2>Daily detail</h2><p class="section-note">Most recent 7 UTC days; CSV contains every day in the selected period</p></div><a href="/analytics/export.csv?days=<%= analytics.days %>">Download all days</a></div>
+        <div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table analytics-daily-table"><thead><tr><th>Date UTC</th><th class="numeric">Invoiced</th><th class="numeric">Collected</th><th class="numeric">Received cost</th></tr></thead><tbody>
+          <% analytics.trend.slice(-7).reverse().forEach(function(day) { %><tr><td data-label="Date UTC"><%= day.date %></td><td class="numeric" data-label="Invoiced"><%= money(day.invoicedCents) %></td><td class="numeric" data-label="Collected"><%= money(day.collectedCents) %></td><td class="numeric" data-label="Received cost"><%= money(day.receivedCostCents) %></td></tr><% }) %>
         </tbody></table></div>
       </section>
     </div>
 
-    <div class="workbench-column">
+    <aside class="workbench-column analytics-side-column">
       <section class="panel">
-        <div class="panel-heading"><div><h3>Sales order mix</h3><p class="section-note"><%= analytics.salesOrderCount %> orders created in period</p></div><a href="/orders">Orders</a></div>
+        <div class="panel-heading"><div><p class="eyebrow">Sales</p><h2>Order mix</h2><p class="section-note"><%= analytics.salesOrderCount %> orders created in period</p></div><a href="/orders">Orders</a></div>
         <% if (analytics.salesOrderCount) { %>
           <div class="progress-track" aria-hidden="true" data-testid="analytics-order-mix">
             <span class="progress-segment progress-draft" style="width:<%= analytics.salesStatuses.DRAFT / analytics.salesOrderCount * 100 %>%"></span>
@@ -70,16 +86,16 @@
       </section>
 
       <section class="panel">
-        <div class="panel-heading"><div><h3>Top invoiced products</h3><p class="section-note">By invoiced line value in period</p></div><a href="/products">Products</a></div>
+        <div class="panel-heading"><div><p class="eyebrow">Product performance</p><h2>Top invoiced products</h2><p class="section-note">By invoiced line value in period</p></div><a href="/products">Products</a></div>
         <% if (analytics.topProducts.length) { %>
           <% analytics.topProducts.forEach(function(product) { %>
-            <div class="product-row"><div class="stock-line"><span><strong><%= product.name %></strong><br><small class="muted"><%= product.sku %> · <%= product.units %> units</small></span><strong><%= money(product.revenueCents) %></strong></div>
-              <div class="progress-track" role="img" aria-label="<%= product.name %> value is <%= money(product.revenueCents) %>, relative to top product"><span class="progress-segment progress-done" style="width:<%= Math.round(product.revenueCents / topProduct * 100) %>%"></span></div>
+            <div class="product-row"><div class="stock-line"><span><strong><%= product.name %></strong><br><small class="muted"><%= product.sku %> · <%= product.units %> units</small></span><strong>$<%= (product.revenueCents / 100).toFixed(2) %></strong></div>
+              <div class="progress-track" role="img" aria-label="<%= product.name %> value is $<%= (product.revenueCents / 100).toFixed(2) %>, relative to top product"><span class="progress-segment progress-done" style="width:<%= Math.round(product.revenueCents / topProduct * 100) %>%"></span></div>
             </div>
           <% }) %>
           <p class="section-note" style="margin-top:10px">Bars compare with the highest-ranked product, not a sales target.</p>
         <% } else { %><p class="section-note">No invoiced products in this period.</p><% } %>
       </section>
-    </div>
+    </aside>
   </section>
 <%- include('partials/footer') %>

@@ -1,9 +1,9 @@
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Purchasing / master data</p><h1>Suppliers</h1><p>Vendor accounts connected to replenishment.</p></div><a class="button" href="/suppliers/new">Add supplier</a></section>
+  <section class="page-heading"><div><p class="eyebrow">Purchasing / master data</p><h1>Suppliers</h1><p>Vendor accounts connected to replenishment.</p></div><% if (locals.can?.('suppliers.write')) { %><a class="button" href="/suppliers/new">Add supplier</a><% } %></section>
   <section class="list-surface" data-list-view aria-label="Supplier register">
     <div class="list-toolbar"><strong data-list-count aria-live="polite">Showing <%= suppliers.length %> of <%= suppliers.length %></strong><div class="list-controls"><label>Search suppliers<input type="search" placeholder="Name or email" data-list-search /></label></div></div>
-    <% if (suppliers.length) { %><div class="table-wrap"><table id="supplier-table"><thead><tr><th>Supplier</th><th>Email</th><th>Phone</th><th>Added</th><th><span class="sr-only">Open supplier</span></th></tr></thead><tbody>
-      <% suppliers.forEach(function (supplier) { %><tr data-filter-row data-testid="supplier-row"><td><a class="record-link" href="/suppliers/<%= supplier.id %>"><%= supplier.name %></a></td><td><%= supplier.email %></td><td><%= supplier.phone || '—' %></td><td><%= new Date(supplier.createdAt).toLocaleDateString('en-US') %></td><td><a class="table-action" href="/suppliers/<%= supplier.id %>">View supplier</a></td></tr><% }) %>
+    <% if (suppliers.length) { %><div class="table-wrap"><table id="supplier-table"><thead><tr><th>Supplier</th><th>Email</th><th>Phone</th><th>Added</th></tr></thead><tbody>
+      <% suppliers.forEach(function (supplier) { %><tr data-filter-row data-testid="supplier-row"><td><a class="record-link" href="/suppliers/<%= supplier.id %>" aria-label="Open supplier <%= supplier.name %>"><%= supplier.name %></a></td><td><%= supplier.email %></td><td><%= supplier.phone || '—' %></td><td><%= new Date(supplier.createdAt).toLocaleDateString('en-US') %></td></tr><% }) %>
     </tbody></table></div><div class="list-empty" data-list-no-results hidden><strong>No matching suppliers</strong>Try another name or email.</div>
     <% } else { %><div class="list-empty"><strong>No suppliers yet</strong>Add a supplier before creating a purchase order.</div><% } %>
   </section>

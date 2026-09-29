@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import {
   cancelPurchaseOrder,
@@ -21,6 +21,7 @@ purchasingRouter.get(
 
 purchasingRouter.post(
   '/',
+  requirePermission('purchases.write'),
   asyncHandler(async (req, res) => {
     const input = createPurchaseOrderSchema.parse(req.body);
     res.status(201).json(await createPurchaseOrder(input));
@@ -34,16 +35,19 @@ purchasingRouter.get(
 
 purchasingRouter.post(
   '/:id/submit',
+  requirePermission('purchases.write'),
   asyncHandler(async (req, res) => res.json(await submitPurchaseOrder(req.params.id))),
 );
 
 purchasingRouter.post(
   '/:id/receive',
+  requirePermission('purchases.receive'),
   asyncHandler(async (req, res) => res.json(await receivePurchaseOrder(req.params.id))),
 );
 
 purchasingRouter.post(
   '/:id/cancel',
+  requirePermission('purchases.write'),
   asyncHandler(async (req, res) => res.json(await cancelPurchaseOrder(req.params.id))),
 );
 
