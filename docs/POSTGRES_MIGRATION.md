@@ -8,7 +8,7 @@
 - The ignored local `.env` holds Neon pooled and unpooled URLs from `neon env pull --service postgres`. The linked `development` branch is the local runtime target; `production` has the schema but no demo seed records.
 - The `development` branch has the PostgreSQL baseline applied and a minimal demo seed. The local demo administrator's rotated password is in the ignored `.env` as `ERP_DEMO_ADMIN_PASSWORD`.
 - `prisma/dev.db` is left untouched. Its records are not copied by the PostgreSQL baseline or seed script.
-- The change-aware CI workflow uses an isolated PostgreSQL service and pins the published test-repository runner at `abd25d1`. Its full database-backed contract run still needs a successful GitHub Actions result.
+- The change-aware CI workflow uses an isolated PostgreSQL service and pins the published test-repository runner at `abd25d1`. [GitHub Actions run 36613076291](https://github.com/ashishbarthwal/ERP/actions/runs/36613076291) applied the baseline and passed all 16 selected contracts. It also reported 54 review items, so this is not a claim of complete change coverage.
 
 ## Connect a fresh Neon branch
 
@@ -52,7 +52,7 @@ No automatic data copy is part of this schema cutover. First decide whether the 
 
 1. Done locally: Neon pooled/unpooled URLs configured, Prisma query confirmed, baseline applied, migration status clean, and minimal demo records seeded on `development`.
 2. Done locally: ERP build and authenticated smoke checks for dashboard, analytics, orders, customers, and products.
-3. Still required: a successful full browser/API contract run against the workflow's disposable PostgreSQL service. The matching test-repository action revision is published and pinned.
+3. Done on the review branch: a full 16/16 browser/API contract run against the workflow's disposable PostgreSQL service. The matching test-repository action revision is published and pinned. Review the 54 generated review items before treating change coverage as complete.
 4. Decide whether to import old SQLite records; they have not been copied.
 5. Add a backup export and restore drill before treating Neon as storage for business data. Never expose the demo branch or its credentials as production data.
 
