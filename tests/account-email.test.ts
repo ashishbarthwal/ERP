@@ -11,18 +11,21 @@ const productionMail = {
   PUBLIC_APP_URL: 'https://erp.example.test',
 };
 
-test('development uses local-only console delivery when SMTP is not configured', () => {
+test('local development and isolated tests use console delivery without SMTP', () => {
   assert.deepEqual(validateMailConfiguration({ NODE_ENV: 'development' }), { mode: 'console' });
+  assert.deepEqual(validateMailConfiguration({ NODE_ENV: 'test' }), { mode: 'console' });
 });
 
-test('production mail requires complete SMTP settings and a public HTTPS URL', () => {
+test('deployed mail requires complete SMTP settings and a public HTTPS URL', () => {
   assert.throws(() => validateMailConfiguration({ NODE_ENV: 'production' }), /Set all mail settings together/);
+  assert.throws(() => validateMailConfiguration({ NODE_ENV: 'staging' }), /Set all mail settings together/);
   assert.throws(() => validateMailConfiguration({ ...productionMail, PUBLIC_APP_URL: 'http://erp.example.test' }), /must use HTTPS/);
   assert.throws(() => validateMailConfiguration({ ...productionMail, MAIL_PORT: 'smtp' }), /MAIL_PORT/);
   assert.deepEqual(validateMailConfiguration(productionMail), {
     mode: 'smtp', host: 'smtp.example.test', port: 587, user: 'erp@example.test', password: 'secret',
     from: 'erp@example.test', secure: false, appUrl: 'https://erp.example.test',
   });
+  assert.equal(validateMailConfiguration({ ...productionMail, NODE_ENV: 'staging' }).mode, 'smtp');
 });
 
 test('test mail capture writes one-use links only to the configured isolated outbox', async (t) => {

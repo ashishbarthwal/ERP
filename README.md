@@ -52,7 +52,7 @@ Set `ERP_SEED_ADMIN_PASSWORD` to a unique password before seeding Neon; the
 local-only default is not allowed for hosted databases.
 
 In development, account verification and password recovery links appear in the
-server console. Production requires SMTP settings (`MAIL_HOST`, `MAIL_PORT`,
+server console. Staging and production require SMTP settings (`MAIL_HOST`, `MAIL_PORT`,
 `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`) and an HTTPS `PUBLIC_APP_URL`; keep
 these values in the deployment secret store. See [access control](docs/ACCESS_CONTROL.md).
 

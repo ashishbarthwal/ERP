@@ -8,8 +8,8 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({
 export const validateMailConfiguration = (environment: Record<string, string | undefined>) => {
   const keys = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASSWORD', 'MAIL_FROM'];
   const present = keys.filter(key => Boolean(environment[key]?.trim()));
-  const production = environment.NODE_ENV === 'production';
-  if (!present.length && !production) return { mode: 'console' as const };
+  const localMode = !environment.NODE_ENV || ['development', 'test'].includes(environment.NODE_ENV);
+  if (!present.length && localMode) return { mode: 'console' as const };
   if (present.length !== keys.length) throw new Error(`Set all mail settings together: ${keys.join(', ')}`);
 
   const port = Number(environment.MAIL_PORT);
@@ -22,7 +22,7 @@ export const validateMailConfiguration = (environment: Record<string, string | u
   let appUrl: URL;
   try { appUrl = new URL(environment.PUBLIC_APP_URL ?? ''); }
   catch { throw new Error('PUBLIC_APP_URL must be an absolute HTTPS URL'); }
-  if (appUrl.protocol !== 'https:' && !(environment.NODE_ENV !== 'production' && appUrl.hostname === 'localhost')) {
+  if (appUrl.protocol !== 'https:' && !(localMode && appUrl.hostname === 'localhost')) {
     throw new Error('PUBLIC_APP_URL must use HTTPS');
   }
   if (appUrl.username || appUrl.password || appUrl.search || appUrl.hash) throw new Error('PUBLIC_APP_URL must be an origin or base path only');
@@ -58,7 +58,7 @@ export const sendAccountActionEmail = async (
         html: `<p>Hello ${greeting},</p><p><a href="${href}">${action}</a></p><p>This link expires in 30 minutes. If you did not request this, you can ignore this email.</p>` });
     } finally { transport.close(); }
   } else {
-    // Local-only development delivery. Production startup rejects this mode.
+    // Local-only development delivery. Deployed environments reject this mode at startup.
     process.stdout.write(`[development email] ${action}: ${link.toString()}\n`);
   }
 };
