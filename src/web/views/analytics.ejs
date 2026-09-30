@@ -78,10 +78,10 @@
             <span class="progress-segment progress-critical" style="width:<%= analytics.salesStatuses.CANCELLED / analytics.salesOrderCount * 100 %>%"></span>
           </div>
           <div class="progress-legend" aria-label="Sales order status mix">
-            <div><span><i class="legend-dot progress-draft"></i>Draft</span><strong><%= analytics.salesStatuses.DRAFT %> · <%= orderShare(analytics.salesStatuses.DRAFT) %>%</strong></div>
-            <div><span><i class="legend-dot progress-ready"></i>Confirmed</span><strong><%= analytics.salesStatuses.CONFIRMED %> · <%= orderShare(analytics.salesStatuses.CONFIRMED) %>%</strong></div>
-            <div><span><i class="legend-dot progress-done"></i>Invoiced</span><strong><%= analytics.salesStatuses.INVOICED %> · <%= orderShare(analytics.salesStatuses.INVOICED) %>%</strong></div>
-            <div><span><i class="legend-dot progress-critical"></i>Cancelled</span><strong><%= analytics.salesStatuses.CANCELLED %> · <%= orderShare(analytics.salesStatuses.CANCELLED) %>%</strong></div>
+            <div><span><i class="legend-dot progress-draft"></i>Draft</span><strong data-testid="analytics-order-draft-count"><%= analytics.salesStatuses.DRAFT %> · <%= orderShare(analytics.salesStatuses.DRAFT) %>%</strong></div>
+            <div><span><i class="legend-dot progress-ready"></i>Confirmed</span><strong data-testid="analytics-order-confirmed-count"><%= analytics.salesStatuses.CONFIRMED %> · <%= orderShare(analytics.salesStatuses.CONFIRMED) %>%</strong></div>
+            <div><span><i class="legend-dot progress-done"></i>Invoiced</span><strong data-testid="analytics-order-invoiced-count"><%= analytics.salesStatuses.INVOICED %> · <%= orderShare(analytics.salesStatuses.INVOICED) %>%</strong></div>
+            <div><span><i class="legend-dot progress-critical"></i>Cancelled</span><strong data-testid="analytics-order-cancelled-count"><%= analytics.salesStatuses.CANCELLED %> · <%= orderShare(analytics.salesStatuses.CANCELLED) %>%</strong></div>
           </div>
           <p class="section-note">Grouped by order creation date, not confirmation date.</p>
         <% } else { %><p class="section-note">No sales orders were created in this period.</p><% } %>
