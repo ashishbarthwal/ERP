@@ -22,11 +22,12 @@ browser security headers, append-only application audit events, database checks
 for core quantities and amounts, and PostgreSQL row locks across the main stock
 and money transitions. Payment APIs also support idempotent retries. Local tests
 and a separate reviewed Playwright contract suite cover these behaviors. The
-site is still not ready for live business data: login/signup throttling, email
-ownership verification, password recovery and session revocation, deployment
-monitoring, backup/restore drills, broader failure recovery, and signed-in
-desktop/mobile usability review remain open. A passing build and health response
-do not establish production readiness.
+site is still not ready for live business data: email ownership verification,
+password recovery for locked-out users, shared rate limiting before multi-instance
+deployment, role editing, deployment monitoring, backup/restore drills, broader
+failure recovery, and a signed-in desktop/mobile usability review remain open.
+Password changes verify the current password and revoke existing sessions. A
+passing build and health response do not establish production readiness.
 
 ## Product boundary
 
@@ -74,8 +75,10 @@ the implementation.
    public signup to 5 attempts per IP in a 15-minute window. The store is
    process-local; use a shared store/edge limit across multiple app instances.
    Account approval and deactivation/reactivation advance a token version so
-   existing API and browser sessions stop working. Password change/recovery and
-   version invalidation on credential changes remain open.
+   existing API and browser sessions stop working. Self-service password changes
+   verify the current password, advance the token version, and revoke existing
+   sessions. Email verification and recovery for users who cannot sign in remain
+   open.
 5. Add tests for anonymous, wrong role, expired session, forged form request,
    and valid actions for each role.
 
