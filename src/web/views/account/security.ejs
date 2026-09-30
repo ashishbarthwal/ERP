@@ -8,7 +8,7 @@
     <form action="/account/security/password" method="post" style="display:grid;gap:16px;margin-top:20px">
       <%- include('../partials/csrf') %>
       <div><label for="currentPassword">Current password</label><input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required /></div>
-      <div><label for="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="72" required /><p class="helper">Use at least 12 characters. Passwords must fit the password storage limit.</p></div>
+      <div><label for="newPassword">New password</label><input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="72" required /><p class="helper">Use at least 12 characters and keep it within 72 bytes.</p></div>
       <div><label for="confirmPassword">Confirm new password</label><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="72" required /></div>
       <button type="submit">Change password and sign out</button>
     </form>
