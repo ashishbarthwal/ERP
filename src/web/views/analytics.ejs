@@ -73,12 +73,14 @@
         <% if (analytics.salesOrderCount) { %>
           <div class="progress-track" aria-hidden="true" data-testid="analytics-order-mix">
             <span class="progress-segment progress-draft" style="width:<%= analytics.salesStatuses.DRAFT / analytics.salesOrderCount * 100 %>%"></span>
-            <span class="progress-segment progress-done" style="width:<%= analytics.salesStatuses.CONFIRMED / analytics.salesOrderCount * 100 %>%"></span>
+            <span class="progress-segment progress-ready" style="width:<%= analytics.salesStatuses.CONFIRMED / analytics.salesOrderCount * 100 %>%"></span>
+            <span class="progress-segment progress-done" style="width:<%= analytics.salesStatuses.INVOICED / analytics.salesOrderCount * 100 %>%"></span>
             <span class="progress-segment progress-critical" style="width:<%= analytics.salesStatuses.CANCELLED / analytics.salesOrderCount * 100 %>%"></span>
           </div>
           <div class="progress-legend" aria-label="Sales order status mix">
             <div><span><i class="legend-dot progress-draft"></i>Draft</span><strong><%= analytics.salesStatuses.DRAFT %> · <%= orderShare(analytics.salesStatuses.DRAFT) %>%</strong></div>
-            <div><span><i class="legend-dot progress-done"></i>Confirmed</span><strong><%= analytics.salesStatuses.CONFIRMED %> · <%= orderShare(analytics.salesStatuses.CONFIRMED) %>%</strong></div>
+            <div><span><i class="legend-dot progress-ready"></i>Confirmed</span><strong><%= analytics.salesStatuses.CONFIRMED %> · <%= orderShare(analytics.salesStatuses.CONFIRMED) %>%</strong></div>
+            <div><span><i class="legend-dot progress-done"></i>Invoiced</span><strong><%= analytics.salesStatuses.INVOICED %> · <%= orderShare(analytics.salesStatuses.INVOICED) %>%</strong></div>
             <div><span><i class="legend-dot progress-critical"></i>Cancelled</span><strong><%= analytics.salesStatuses.CANCELLED %> · <%= orderShare(analytics.salesStatuses.CANCELLED) %>%</strong></div>
           </div>
           <p class="section-note">Grouped by order creation date, not confirmation date.</p>

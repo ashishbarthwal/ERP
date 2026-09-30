@@ -57,9 +57,11 @@ next milestone.
    this intentionally simplified model.
 3. Write a permission matrix for Admin, Sales, Purchasing, and Inventory roles.
    Include every page and API mutation, plus analytics export.
-4. Capture current desktop and mobile screenshots and a short usability review:
-   keyboard navigation, labels, focus states, empty states, error messages, and
-   the most important tables.
+4. **Partially complete:** capture representative desktop/mobile pages and
+   review layout, labels, focus, empty states, and errors. The 30 September
+   synthetic-fixture review is recorded in [UI review](UI_REVIEW_2026-09-30.md);
+   the suite checks all screens at 320, 390, and 1440 CSS pixels. Still review
+   keyboard-only flows and the signed-in UI in a supervised real environment.
 
 **Exit:** A reviewer can explain the workflow, roles, and limits without reading
 the implementation.

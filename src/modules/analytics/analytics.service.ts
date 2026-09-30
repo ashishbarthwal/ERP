@@ -15,7 +15,7 @@ export async function getAnalytics(days: AnalyticsPeriod, now = new Date()) {
     prisma.invoice.findMany({ where: { createdAt: { gte: since, lte: until } }, include: { items: { include: { product: true } } } }),
     prisma.payment.findMany({ where: { createdAt: { gte: since, lte: until } } }),
     prisma.invoice.findMany({ where: { status: 'PENDING' }, include: { payments: true } }),
-    prisma.order.findMany({ where: { createdAt: { gte: since, lte: until } }, select: { status: true } }),
+    prisma.order.findMany({ where: { createdAt: { gte: since, lte: until } }, select: { status: true, invoice: { select: { id: true } } } }),
     prisma.purchaseOrder.findMany({ where: { receivedAt: { gte: since, lte: until }, status: 'RECEIVED' }, include: { items: true } }),
     prisma.purchaseOrder.findMany({ where: { status: { in: ['DRAFT', 'ORDERED'] } }, include: { items: true } }),
     prisma.product.findMany({ include: { inventoryItem: true } }),
@@ -53,7 +53,12 @@ export async function getAnalytics(days: AnalyticsPeriod, now = new Date()) {
   const committedPurchaseCents = openPurchases.filter(order => order.status === 'ORDERED').reduce((sum, order) => sum + order.items.reduce((value, item) => value + item.quantity * item.unitCostCents, 0), 0);
   const stockAlerts = products.filter(product => (product.inventoryItem?.availableQty ?? 0) - (product.inventoryItem?.reservedQty ?? 0) < 10);
   const topProducts = [...productTotals.values()].sort((a, b) => b.revenueCents - a.revenueCents || a.sku.localeCompare(b.sku)).slice(0, 5);
-  const salesStatuses = Object.fromEntries(['DRAFT', 'CONFIRMED', 'CANCELLED'].map(status => [status, salesOrders.filter(order => order.status === status).length]));
+  const salesStatuses = {
+    DRAFT: salesOrders.filter(order => order.status === 'DRAFT').length,
+    CONFIRMED: salesOrders.filter(order => order.status === 'CONFIRMED' && !order.invoice).length,
+    INVOICED: salesOrders.filter(order => Boolean(order.invoice)).length,
+    CANCELLED: salesOrders.filter(order => order.status === 'CANCELLED').length,
+  };
   const bucketDays = days === 7 ? 1 : days === 30 ? 3 : 7;
   const chart = [];
   for (let offset = 0; offset < trend.length; offset += bucketDays) {
