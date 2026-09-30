@@ -73,7 +73,9 @@ export const addStock = async (productId: string, quantity: number, actorId: str
   const idempotencyKeyHash = idempotencyKey ? createHash('sha256').update(idempotencyKey).digest('hex') : undefined;
   return prisma.$transaction(async (tx) => {
     if (idempotencyKeyHash) {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKeyHash}, 0))`;
+      // The lock function returns PostgreSQL's `void`, which Prisma cannot decode
+      // from a raw result. IS NULL returns a plain boolean after taking the lock.
+      await tx.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKeyHash}, 0)) IS NULL AS locked`;
       const prior = await tx.inventoryMovement.findUnique({ where: { idempotencyKeyHash } });
       if (prior) {
         if (prior.productId !== productId || prior.type !== 'MANUAL_ADDITION' || prior.quantityDelta !== quantity || prior.note !== (note || null)) {
