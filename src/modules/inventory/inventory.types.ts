@@ -5,6 +5,8 @@ export const addStockSchema = z.object({
   note: z.string().trim().max(160).optional(),
 });
 
+export const stockIdempotencyKeySchema = z.string().min(8).max(200).regex(/^[A-Za-z0-9._~-]+$/);
+
 export type AddStockInput = z.infer<typeof addStockSchema>;
 
 export type InventoryMovementType =
@@ -19,4 +21,5 @@ export interface InventoryMovementContext {
   referenceType?: 'ORDER' | 'PURCHASE_ORDER' | 'MANUAL';
   referenceId?: string;
   note?: string;
+  idempotencyKeyHash?: string;
 }

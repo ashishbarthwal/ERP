@@ -99,10 +99,10 @@ rejected. A disabled account cannot keep acting with an old token.
 2. **Implemented for core transitions:** confirmation, cancellation, invoicing,
    purchase receipt, stock changes, and payments recheck state under PostgreSQL
    row locks. Keep expanding race and rollback coverage.
-3. **Partially implemented:** API payment recording and purchase receipt accept
-   `Idempotency-Key`; identical retries return the existing invoice/receipt,
-   payment keys reused with different details are rejected, and a different key
-   cannot repeat a completed receipt. Add equivalent protection for other
+3. **Partially implemented:** API payment recording, purchase receipt, and
+   manual stock addition accept `Idempotency-Key`; identical retries return the
+   existing result without repeating money or stock movements, and reusing a
+   key with different details is rejected. Add equivalent protection for other
    externally repeatable transitions.
 4. **Partially implemented:** `npm run db:reconcile` runs read-only checks for
    product inventory coverage, order reservations, invoice snapshots and totals,

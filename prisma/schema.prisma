@@ -97,6 +97,7 @@ model InventoryMovement {
   referenceType String?
   referenceId   String?
   note          String?
+    idempotencyKeyHash String? @unique
   createdAt     DateTime @default(now())
 
   @@index([productId, createdAt])

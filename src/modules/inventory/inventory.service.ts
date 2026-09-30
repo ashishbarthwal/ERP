@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import { prisma } from '../../lib/prisma';
-import { badRequest, notFound } from '../../lib/errors';
+import { badRequest, conflict, notFound } from '../../lib/errors';
 import type { InventoryMovementContext } from './inventory.types';
 import { recordAuditEvent } from '../audit/audit.service';
 
@@ -25,6 +26,7 @@ export const getInventoryForProduct = async (productId: string, client: Client =
 export const listInventoryMovements = (productId: string) =>
   prisma.inventoryMovement.findMany({
     where: { productId },
+    select: { id: true, productId: true, type: true, quantityDelta: true, reservedDelta: true, referenceType: true, referenceId: true, note: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
@@ -45,6 +47,7 @@ const recordMovement = (
       referenceType: context.referenceType,
       referenceId: context.referenceId,
       note: context.note,
+      idempotencyKeyHash: context.idempotencyKeyHash,
     },
   });
 
@@ -63,15 +66,27 @@ export const increaseStock = async (
   return updated;
 };
 
-export const addStock = async (productId: string, quantity: number, actorId: string, note?: string) => {
+export const addStock = async (productId: string, quantity: number, actorId: string, note?: string, idempotencyKey?: string) => {
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw badRequest('Stock quantity must be a positive integer');
   }
+  const idempotencyKeyHash = idempotencyKey ? createHash('sha256').update(idempotencyKey).digest('hex') : undefined;
   return prisma.$transaction(async (tx) => {
+    if (idempotencyKeyHash) {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKeyHash}, 0))`;
+      const prior = await tx.inventoryMovement.findUnique({ where: { idempotencyKeyHash } });
+      if (prior) {
+        if (prior.productId !== productId || prior.type !== 'MANUAL_ADDITION' || prior.quantityDelta !== quantity || prior.note !== (note || null)) {
+          throw conflict('Idempotency key was already used for a different stock adjustment');
+        }
+        return getInventoryForProduct(productId, tx);
+      }
+    }
     const updated = await increaseStock(tx, productId, quantity, {
       type: 'MANUAL_ADDITION',
       referenceType: 'MANUAL',
       note,
+      idempotencyKeyHash,
     });
     await recordAuditEvent(tx, { actorId, action: 'stock.added', entityType: 'Product', entityId: productId,
       summary: `Added ${quantity} units to stock${note ? `: ${note}` : ''}` });

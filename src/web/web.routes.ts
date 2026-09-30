@@ -12,6 +12,7 @@ import { createCustomer, getCustomer, listCustomers } from '../modules/customers
 import { createProductSchema } from '../modules/products/products.types';
 import { createProduct, getProduct, listProducts } from '../modules/products/products.service';
 import { addStock } from '../modules/inventory/inventory.service';
+import { stockIdempotencyKeySchema } from '../modules/inventory/inventory.types';
 import { createOrderSchema } from '../modules/orders/orders.types';
 import { cancelOrder, confirmOrder, createOrder, getOrder, listOrders } from '../modules/orders/orders.service';
 import { createInvoiceSchema, recordPaymentSchema } from '../modules/invoices/invoices.types';
@@ -434,17 +435,19 @@ webRouter.post('/products', requireWebPermission('products.write'), async (req, 
 
 webRouter.get('/products/:id', requireWebAuth, async (req, res) => {
   res.render('products/show', { product: await getProduct(req.params.id), error: req.query.error,
-    stockDraft: textDraft(undefined, ['quantity', 'note']), stockFieldError: '' });
+    stockDraft: textDraft(undefined, ['quantity', 'note']), stockFieldError: '', stockIdempotencyKey: randomUUID() });
 });
 
 webRouter.post('/products/:id/stock', requireWebPermission('inventory.write'), async (req, res) => {
   try {
-    await addStock(req.params.id, Number(req.body.quantity), req.user!.userId, req.body.note ? String(req.body.note) : undefined);
+    const key = stockIdempotencyKeySchema.parse(req.body.idempotencyKey);
+    await addStock(req.params.id, Number(req.body.quantity), req.user!.userId, req.body.note ? String(req.body.note) : undefined, key);
     res.redirect(`/products/${req.params.id}`);
   } catch (err) {
     return res.status(formErrorStatus(err)).render('products/show', {
       product: await getProduct(req.params.id), error: errorMessage(err),
       stockDraft: textDraft(req.body, ['quantity', 'note']),
+      stockIdempotencyKey: typeof req.body.idempotencyKey === 'string' && stockIdempotencyKeySchema.safeParse(req.body.idempotencyKey).success ? req.body.idempotencyKey : randomUUID(),
       stockFieldError: err instanceof AppError && err.message.startsWith('Stock quantity') ? err.message : '',
     });
   }

@@ -52,7 +52,7 @@ jobs:
           package-manager-cache: false
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a CI-verified framework commit.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@cfe159aaaa45bf0af3b596415b456b805960c43b
+        uses: ashishbarthwal/ai-self-healing-test-automation-framework@02d8653ddff7d983b5651f1d92da547cc633a44c
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -69,3 +69,4 @@ jobs:
       - name: Run PostgreSQL backup and restore smoke
         run: npm run db:backup-restore:smoke
         working-directory: ${{ github.workspace }}/erp
+
