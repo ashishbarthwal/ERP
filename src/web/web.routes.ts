@@ -5,8 +5,8 @@ import { ZodError } from 'zod';
 import { AppError, badRequest } from '../lib/errors';
 import { requireWebAuth, requireWebPermission } from './web.middleware';
 import { setSessionCookie, clearSessionCookie } from './web.middleware';
-import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, loginSchema, registerSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
-import { approveUser, changePassword, changeUserRole, getCurrentUser, loginUser, registerUser, setUserActive, signupUser } from '../modules/auth/auth.service';
+import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, emailRequestSchema, loginSchema, registerSchema, resetPasswordSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
+import { approveUser, changePassword, changeUserRole, getCurrentUser, loginUser, registerUser, requestPasswordReset, resetPassword, resendEmailVerification, setUserActive, signupUser, verifyAccountEmail } from '../modules/auth/auth.service';
 import { createCustomerSchema } from '../modules/customers/customers.types';
 import { createCustomer, getCustomer, listCustomers } from '../modules/customers/customers.service';
 import { createProductSchema } from '../modules/products/products.types';
@@ -29,7 +29,7 @@ import {
 } from '../modules/purchasing/purchasing.service';
 import { analyticsCsv, getAnalytics, parseAnalyticsPeriod } from '../modules/analytics/analytics.service';
 import { prisma } from '../lib/prisma';
-import { loginAttemptLimiter, rateLimitMiddleware, signupAttemptLimiter } from '../middleware/ip-rate-limit';
+import { loginAttemptLimiter, passwordResetAttemptLimiter, rateLimitMiddleware, signupAttemptLimiter } from '../middleware/ip-rate-limit';
 
 export const webViewsPath = path.join(__dirname, 'views');
 
@@ -182,6 +182,64 @@ webRouter.get('/signup/success', (req, res) => {
   res.render('signup-success');
 });
 
+webRouter.post('/verify-email/resend', rateLimitMiddleware(signupAttemptLimiter), async (req, res) => {
+  const input = emailRequestSchema.safeParse(req.body);
+  if (input.success) {
+    try { await resendEmailVerification(input.data.email); }
+    catch { console.error('Email verification request could not be processed'); }
+  }
+  res.redirect('/signup/success?sent=1');
+});
+
+webRouter.get('/verify-email', (req, res) => {
+  res.render('verify-email', {
+    token: typeof req.query.token === 'string' ? req.query.token : '', verified: false, attempted: false, error: '',
+  });
+});
+
+webRouter.post('/verify-email', async (req, res) => {
+  try {
+    await verifyAccountEmail(typeof req.body?.token === 'string' ? req.body.token : '');
+    return res.render('verify-email', { token: '', verified: true, attempted: true, error: '' });
+  } catch (err) {
+    const serviceFailure = !(err instanceof AppError);
+    if (serviceFailure) console.error('Email verification could not be completed');
+    return res.status(serviceFailure ? 503 : 400).render('verify-email', {
+      token: typeof req.body?.token === 'string' ? req.body.token : '', verified: false, attempted: true,
+      error: serviceFailure ? 'Email verification is temporarily unavailable. Try again shortly.' : 'This verification link is invalid or expired. Request a new one below.',
+    });
+  }
+});
+
+webRouter.get('/forgot-password', (req, res) => res.render('forgot-password', { sent: req.query.sent === '1' }));
+
+webRouter.post('/forgot-password', rateLimitMiddleware(passwordResetAttemptLimiter), async (req, res) => {
+  const startedAt = Date.now();
+  const input = emailRequestSchema.safeParse(req.body);
+  if (input.success) {
+    try { await requestPasswordReset(input.data.email); }
+    catch { console.error('Password recovery request could not be processed'); }
+  }
+  await new Promise(resolve => setTimeout(resolve, Math.max(0, 250 - (Date.now() - startedAt))));
+  res.redirect('/forgot-password?sent=1');
+});
+
+webRouter.get('/reset-password', (req, res) => {
+  res.render('reset-password', { token: typeof req.query.token === 'string' ? req.query.token : '', error: '' });
+});
+
+webRouter.post('/reset-password', async (req, res) => {
+  try {
+    const input = resetPasswordSchema.parse(req.body);
+    await resetPassword(input.token, input.password);
+    return res.redirect('/login?message=Password%20updated.%20Sign%20in%20with%20your%20new%20password.');
+  } catch (err) {
+    return res.status(formErrorStatus(err)).render('reset-password', {
+      token: typeof req.body?.token === 'string' ? req.body.token : '', error: errorMessage(err),
+    });
+  }
+});
+
 webRouter.get('/account/security', requireWebAuth, (_req, res) => {
   res.render('account/security');
 });
@@ -197,7 +255,7 @@ webRouter.post('/account/security/password', requireWebAuth, async (req, res) =>
 });
 
 webRouter.get('/users', requireWebPermission('users.write'), async (req, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true }, orderBy: { createdAt: 'asc' } });
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, emailVerifiedAt: true, role: true, active: true, createdAt: true }, orderBy: { createdAt: 'asc' } });
   res.render('users/list', { users, pendingUsers: users.filter(user => user.role === 'PENDING'), currentUserId: req.user!.userId, error: req.query.error });
 });
 

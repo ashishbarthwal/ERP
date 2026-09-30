@@ -1,0 +1,8 @@
+<%- include('partials/header') %>
+  <section class="auth-page">
+    <div class="auth-intro"><div class="auth-wordmark"><span class="brand-mark">ME</span><span>mini<span class="auth-wordmark-separator">/</span>erp</span></div><div class="auth-story"><p class="eyebrow">Secure workspace access</p><h1>One team.<br /><em>Clear operations.</em></h1><p>Verify the email address for your workspace account.</p></div><p class="auth-intro-foot">Sales, purchasing, inventory, and billing in one workspace.</p></div>
+    <section class="panel auth-panel" aria-labelledby="auth-title"><div class="auth-form-heading"><p class="eyebrow">Email verification</p><h2 id="auth-title"><%= verified ? 'Email confirmed' : attempted || !token ? 'Link unavailable' : 'Confirm your email' %></h2><p><%= verified ? 'Your address is confirmed. An administrator can now review your workspace access request.' : attempted || !token ? error || 'Open a verification link from your email, or request a new one below.' : 'Confirm control of this email address to continue your workspace request.' %></p></div>
+      <% if (!verified && token && !attempted) { %><form action="/verify-email" method="post"><%- include('partials/csrf') %><input type="hidden" name="token" value="<%= token %>" /><button class="button" type="submit">Confirm email address</button></form><% } else if (!verified) { %><form action="/verify-email/resend" method="post"><%- include('partials/csrf') %><div><label for="email">Work email</label><input type="email" id="email" name="email" autocomplete="email" required /></div><button class="button secondary" type="submit">Send a new link</button></form><% } %>
+      <a class="button" href="/login">Back to sign in</a></section>
+  </section>
+<%- include('partials/footer') %>

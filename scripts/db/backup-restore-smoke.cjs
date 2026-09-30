@@ -45,6 +45,7 @@ function fingerprint(connection) {
     'invoices', (SELECT count(*) FROM "Invoice"),
     'payments', (SELECT count(*) FROM "Payment"),
     'paymentCents', (SELECT coalesce(sum("amountCents"), 0) FROM "Payment"),
+    'accountActionTokens', (SELECT count(*) FROM "AccountActionToken"),
     'rateLimitBuckets', (SELECT count(*) FROM "RateLimitBucket"),
     'migrations', (SELECT count(*) FROM "_prisma_migrations")
   )::text;`;

@@ -16,7 +16,7 @@ async function main() {
   await prisma.user.upsert({
     where: { email: 'admin@mini-erp.test' },
     update: {},
-    create: { email: 'admin@mini-erp.test', name: 'Admin', passwordHash, role: 'ADMIN' },
+    create: { email: 'admin@mini-erp.test', name: 'Admin', passwordHash, role: 'ADMIN', emailVerifiedAt: new Date() },
   });
 
   const customer = await prisma.customer.upsert({

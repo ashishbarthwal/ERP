@@ -125,6 +125,7 @@ export const rateLimitMiddleware = (
 
 export const loginAttemptLimiter = new SharedIpRateLimiter(10, 15 * 60 * 1000, 'login');
 export const signupAttemptLimiter = new SharedIpRateLimiter(5, 15 * 60 * 1000, 'signup');
+export const passwordResetAttemptLimiter = new SharedIpRateLimiter(5, 15 * 60 * 1000, 'password-reset');
 
 export const configureAuthAttemptLimits = (loginLimit: number, signupLimit: number) => {
   loginAttemptLimiter.setLimit(loginLimit);

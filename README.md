@@ -12,7 +12,7 @@ as an independent development, staging, or production-like target.
 The application includes:
 
 - cookie-based web authentication and JWT API authentication
-- server-enforced Admin, Sales, Purchasing, Inventory, and read-only Staff roles; public account requests wait for Admin approval; Admins can change team roles and access, revoking existing sessions
+- server-enforced Admin, Sales, Purchasing, Inventory, and read-only Staff roles; public account requests verify email and wait for Admin approval; password recovery revokes existing sessions
 - per-IP sign-in and signup attempt limits, with configurable proxy-hop trust for deployments behind a known proxy chain
 - self-service password changes verify the current password and revoke existing sessions
 - customers, suppliers, products, and inventory
@@ -25,6 +25,8 @@ The application includes:
 See the [product and production-readiness roadmap](docs/ROADMAP.md) for the
 prioritized milestones, acceptance criteria, and project scope.
 See [access control](docs/ACCESS_CONTROL.md) for the permission matrix and remaining security work.
+See the [database recovery runbook](docs/OPERATIONS_RECOVERY.md) for the
+staging restore and cutover procedure; it still needs a staging rehearsal.
 
 ## Stack
 
@@ -48,6 +50,11 @@ the ignored `.env` file; never commit them. The application listens on
 `http://localhost:4000` by default. Set `PORT` in `.env` to use another port.
 Set `ERP_SEED_ADMIN_PASSWORD` to a unique password before seeding Neon; the
 local-only default is not allowed for hosted databases.
+
+In development, account verification and password recovery links appear in the
+server console. Production requires SMTP settings (`MAIL_HOST`, `MAIL_PORT`,
+`MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM`) and an HTTPS `PUBLIC_APP_URL`; keep
+these values in the deployment secret store. See [access control](docs/ACCESS_CONTROL.md).
 
 `/health` reports process liveness. `/ready` also queries PostgreSQL and returns
 503 when the database is unavailable; use `/ready` for deployment readiness checks.

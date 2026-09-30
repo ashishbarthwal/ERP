@@ -21,8 +21,24 @@ model User {
   role         String   @default("STAFF")
   active       Boolean  @default(true)
   tokenVersion Int      @default(0)
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
   auditEvents  AuditEvent[]
+  actionTokens AccountActionToken[]
+}
+
+model AccountActionToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String
+  tokenHash String   @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, expiresAt])
+  @@index([expiresAt])
 }
 
 model AuditEvent {

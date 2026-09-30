@@ -6,7 +6,8 @@
       <p class="auth-intro-foot">Sales, purchasing, inventory, and billing in one workspace.</p>
     </div>
     <section class="panel auth-panel" aria-labelledby="auth-title">
-      <div class="auth-form-heading"><p class="eyebrow">Account created</p><h2 id="auth-title">Approval pending</h2><p>Your account is ready. A workspace administrator needs to approve it before you can sign in and view business data.</p></div>
+      <div class="auth-form-heading"><p class="eyebrow">Account request received</p><h2 id="auth-title">Check your email</h2><p>Verify your email address first. After that, a workspace administrator will review your request before you can sign in.</p></div>
+      <form action="/verify-email/resend" method="post"><%- include('partials/csrf') %><div><label for="email">Work email</label><input type="email" id="email" name="email" autocomplete="email" required /></div><button class="button secondary" type="submit">Resend verification link</button></form>
       <a class="button" href="/login">Back to sign in</a>
     </section>
   </section>

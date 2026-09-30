@@ -17,16 +17,19 @@ migrations, and a separate change aware Playwright workflow.
 The earlier assessment was **7.5/10 as a personal project** and **3/10 as a
 business deployment**. Treat those as a historical baseline, not a current score.
 Since then, the app added role-enforced web/API permissions, pending public
-signup with Admin approval, CSRF protection, startup configuration validation,
-browser security headers, append-only application audit events, database checks
-for core quantities and amounts, and PostgreSQL row locks across the main stock
-and money transitions. Payment APIs also support idempotent retries. Local tests
-and a separate reviewed Playwright contract suite cover these behaviors. The
-site is still not ready for live business data: email ownership verification,
-password recovery for locked-out users, deployment monitoring, backup/restore drills, broader failure recovery,
-and a signed-in desktop/mobile usability review remain open. Admins can change
-approved users' roles; role and password changes revoke existing sessions. A
-passing build and health response do not establish production readiness.
+signup with verified email and Admin approval, one-use email recovery links,
+CSRF protection, startup configuration validation, browser security headers,
+append-only application audit events, database checks for core quantities and
+amounts, and PostgreSQL row locks across the main stock and money transitions.
+Payment APIs also support idempotent retries. A disposable PostgreSQL CI job now
+tests backup restoration and data integrity; it is not a hosted backup service.
+Local tests and a separate reviewed Playwright contract suite cover these
+behaviors. The site is still not ready for live business data: production SMTP
+secrets need configuration, hosted backup retention, staging restore rehearsal,
+deployment monitoring, broader failure recovery, and a signed-in desktop/mobile
+usability review remain open. Admins can change approved users'
+roles; role and password changes revoke existing sessions. A passing build and
+health response do not establish production readiness.
 
 ## Product boundary
 
@@ -108,7 +111,7 @@ purchase order, consume stock twice, or leave a partially applied workflow.
 
 ### 3. Make the app deployable and recoverable (1 to 2 weeks)
 
-1. **Implemented:** local config/signup tests, typecheck/build, the companion
+1. **Implemented:** local config/auth tests, typecheck/build, the companion
    reviewed Playwright contracts, and isolated PostgreSQL CI. Keep these gates
    passing as workflows change.
 2. Prepare a staging environment with HTTPS, environment specific secrets,
@@ -121,8 +124,11 @@ purchase order, consume stock twice, or leave a partially applied workflow.
    activity log, and HTTP requests emit structured logs with generated request
    IDs. Add log shipping and error alerts; current logs exclude request bodies,
    query strings, cookies, and authorization headers.
-4. Automate database backups, document retention, and perform a restore drill.
-   Write a one page runbook for failed deployment, failed migration, and recovery.
+4. **Partially implemented:** CI dumps and restores its disposable PostgreSQL
+   database and compares key business row counts and payment totals. Automate
+   hosted database backups, document retention, and restore into a staging
+   instance. A documented [restore and cutover runbook](OPERATIONS_RECOVERY.md)
+   is ready for rehearsal. Rehearse it for failed deployment and migration.
 5. Track dependency updates and security advisories; review upgrades through
    the same CI gates.
 

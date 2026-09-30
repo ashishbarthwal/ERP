@@ -1,4 +1,5 @@
 export type RuntimeEnvironment = Record<string, string | undefined>;
+import { validateMailConfiguration } from '../lib/account-email';
 
 const required = (environment: RuntimeEnvironment, key: string) => {
   const value = environment[key]?.trim();
@@ -36,6 +37,7 @@ export const parseCorsOrigins = (value: string | undefined) =>
   });
 
 export const parseRuntimeConfig = (environment: RuntimeEnvironment) => {
+  validateMailConfiguration(environment);
   const databaseUrl = required(environment, 'DATABASE_URL');
   const directUrl = required(environment, 'DATABASE_URL_UNPOOLED');
   const jwtSecret = required(environment, 'JWT_SECRET');

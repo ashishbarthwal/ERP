@@ -27,5 +27,7 @@ test('runtime config validates the database, secret, CORS origins, and port', ()
   });
   assert.throws(() => parseRuntimeConfig({ ...valid, AUTH_LOGIN_ATTEMPT_LIMIT: '0' }), /AUTH_LOGIN_ATTEMPT_LIMIT/);
   assert.throws(() => parseCorsOrigins('https://app.example.test/path'), /exact HTTP or HTTPS origins/);
-  assert.equal(parseRuntimeConfig({ ...valid, NODE_ENV: 'production' }).production, true);
+  assert.throws(() => parseRuntimeConfig({ ...valid, NODE_ENV: 'production' }), /Set all mail settings together/);
+  assert.equal(parseRuntimeConfig({ ...valid, NODE_ENV: 'production', MAIL_HOST: 'smtp.example.test', MAIL_PORT: '587',
+    MAIL_USER: 'erp@example.test', MAIL_PASSWORD: 'mail-secret', MAIL_FROM: 'erp@example.test', PUBLIC_APP_URL: 'https://erp.example.test' }).production, true);
 });
