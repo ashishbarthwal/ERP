@@ -32,6 +32,8 @@ See the [database recovery runbook](docs/OPERATIONS_RECOVERY.md) for the
 staging restore and cutover procedure; it still needs a staging rehearsal.
 See the [staging deployment runbook](docs/STAGING_DEPLOYMENT.md) for the
 immutable container, release preflight, verification, and rollback procedure.
+See the [monitoring and incident runbook](docs/OPERATIONS_MONITORING.md) for
+structured signals, starting alert thresholds, and response procedures.
 
 ## Stack
 

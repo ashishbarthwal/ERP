@@ -121,7 +121,9 @@ development data or claim the deployment gate passed.
    verification, and rollback.
 3. Select a staging provider and document target isolation before deploying.
 4. Configure scheduled backups and run the provider-level restore drill.
-5. Add monitoring, alert tests, and incident runbooks.
+5. **Runbooks complete:** structured error telemetry, alert thresholds, and
+   incident procedures are documented. External monitoring and alert delivery
+   still require a selected staging provider.
 6. Complete the supervised signed-in accessibility/usability review.
 
 See the broader product scope and prior milestone history in [the roadmap](ROADMAP.md).

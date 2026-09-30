@@ -2,9 +2,30 @@ import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '../lib/errors';
 import { ZodError } from 'zod';
 
+export const unexpectedErrorEvent = (err: unknown, req: Request, res: Response) => {
+  const candidate = err && typeof err === 'object' ? err as { name?: unknown; code?: unknown } : undefined;
+  const databaseCode = typeof candidate?.code === 'string' && /^P\d{4}$/.test(candidate.code) ? candidate.code : undefined;
+  return {
+    level: 'error',
+    event: 'application_error',
+    requestId: res.locals.requestId,
+    method: req.method,
+    route: req.route ? `${req.baseUrl}${req.route.path}` : req.path,
+    errorName: typeof candidate?.name === 'string' ? candidate.name : typeof err,
+    ...(databaseCode ? { databaseCode } : {}),
+  };
+};
+
+const logUnexpectedError = (err: unknown, req: Request, res: Response) => {
+  console.error(JSON.stringify(unexpectedErrorEvent(err, req, res)));
+};
+
 // Centralized error handler: keeps route handlers free of try/catch boilerplate
 // (routes call next(err) or throw inside asyncHandler-wrapped handlers).
 export const errorMiddleware = (err: unknown, req: Request, res: Response, next: NextFunction) => {
+  const expected = err instanceof AppError || err instanceof ZodError
+    || (err instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(err.name));
+  if (!expected) logUnexpectedError(err, req, res);
   if (res.headersSent) return next(err);
   const webRequest = !req.path.startsWith('/api/') && req.path !== '/api' && !['/health', '/ready'].includes(req.path);
   if (webRequest) {
