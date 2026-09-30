@@ -79,9 +79,11 @@ the implementation.
    persisted. Account approval, role changes, deactivation/reactivation, and self-service
    password changes advance a token version so existing API and browser sessions
    stop working. Password changes verify the current password. Email verification
-   and recovery for users who cannot sign in remain open.
-5. Add tests for anonymous, wrong role, expired session, forged form request,
-   and valid actions for each role.
+   and one-use password recovery are implemented; SMTP is mandatory in staging
+   and production, and the browser contracts verify the explicit confirmation
+   and reset flows.
+5. Continue broadening tests for anonymous access, wrong roles, expired sessions,
+   forged form requests, and allowed actions across every page and mutation.
 
 **Exit:** A signed in Sales user cannot adjust stock or record a payment unless
 the matrix permits it, through either the page or the API. A forged form POST is
