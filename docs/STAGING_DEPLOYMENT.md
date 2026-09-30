@@ -59,14 +59,20 @@ Deploy the SHA-tagged image with one instance first. Configure the platform's
 readiness check to use `/ready`; `/health` only proves the process can respond.
 After the instance is ready:
 
-1. Fetch `/health` and `/ready` over the public HTTPS address.
-2. Confirm `X-ERP-Release` equals the deployed SHA.
-3. Confirm HSTS, secure cookies, and the expected content-security headers.
-4. Sign in with the restricted staging administrator and verify logout.
-5. Exercise email verification and password recovery through the staging SMTP
+```powershell
+npm run release:verify -- "https://staging.example.com" $releaseSha
+```
+
+The command verifies HTTPS, liveness, database readiness, exact release
+identity, security headers, and the secure CSRF cookie without signing in or
+changing data. Then complete the supervised checks below:
+
+1. Save the automated verification result in the release evidence record.
+2. Sign in with the restricted staging administrator and verify logout.
+3. Exercise email verification and password recovery through the staging SMTP
    sender. Confirm links point to the staging HTTPS origin.
-6. Verify one denied role action and one synthetic purchase-to-payment workflow.
-7. Run `npm run db:reconcile` against the staging database and record the result.
+4. Verify one denied role action and one synthetic purchase-to-payment workflow.
+5. Run `npm run db:reconcile` against the staging database and record the result.
 
 Keep the prior image SHA available until the verification record is approved.
 

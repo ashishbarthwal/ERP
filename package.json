@@ -17,7 +17,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:backup-restore:smoke": "node scripts/db/backup-restore-smoke.cjs",
-    "release:preflight": "node scripts/release/preflight.cjs"
+    "release:preflight": "node scripts/release/preflight.cjs",
+    "release:verify": "node scripts/release/verify-deployment.cjs"
   },
   "license": "ISC",
   "dependencies": {

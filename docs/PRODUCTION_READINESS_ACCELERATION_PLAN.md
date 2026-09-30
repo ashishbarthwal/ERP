@@ -116,9 +116,9 @@ development data or claim the deployment gate passed.
 
 1. **Complete:** pass the concurrent manual-stock retry contract and pin the
    exact tested framework revision in the ERP workflow.
-2. **Repository work complete:** build an immutable container, require exact
-   release identity, and document staging deployment and rollback. CI still
-   needs to validate the container on this revision.
+2. **Complete in the repository:** build and CI-validate an immutable container,
+   require exact release identity, and document staging deployment, external
+   verification, and rollback.
 3. Select a staging provider and document target isolation before deploying.
 4. Configure scheduled backups and run the provider-level restore drill.
 5. Add monitoring, alert tests, and incident runbooks.
