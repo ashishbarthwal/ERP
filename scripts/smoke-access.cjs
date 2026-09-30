@@ -26,7 +26,7 @@ async function main() {
   const users = await fetch(`${base}/users`, { headers: { cookie } });
   assert.equal(users.status, 200, 'admin user directory');
   assert.match(await users.text(), /Workspace users/);
-  for (const path of ['/dashboard', '/analytics', '/customers', '/customers/new', '/products', '/products/new', '/orders', '/orders/new', '/invoices', '/suppliers', '/suppliers/new', '/purchase-orders', '/purchase-orders/new', '/register']) {
+  for (const path of ['/dashboard', '/analytics', '/activity', '/customers', '/customers/new', '/products', '/products/new', '/orders', '/orders/new', '/invoices', '/suppliers', '/suppliers/new', '/purchase-orders', '/purchase-orders/new', '/register']) {
     const page = await fetch(`${base}${path}`, { headers: { cookie } });
     assert.equal(page.status, 200, `admin page ${path}`);
     const html = await page.text();

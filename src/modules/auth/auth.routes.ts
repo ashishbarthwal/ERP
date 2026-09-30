@@ -12,7 +12,7 @@ authRouter.post(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const input = registerSchema.parse(req.body);
-    res.status(201).json({ user: await registerUser(input) });
+    res.status(201).json({ user: await registerUser(input, req.user!.userId) });
   }),
 );
 

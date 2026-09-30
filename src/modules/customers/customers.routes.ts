@@ -19,7 +19,7 @@ customersRouter.post(
   requirePermission('customers.write'),
   asyncHandler(async (req, res) => {
     const input = createCustomerSchema.parse(req.body);
-    res.status(201).json(await createCustomer(input));
+    res.status(201).json(await createCustomer(input, req.user!.userId));
   }),
 );
 

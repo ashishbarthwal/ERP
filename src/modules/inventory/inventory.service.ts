@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { badRequest, notFound } from '../../lib/errors';
 import type { InventoryMovementContext } from './inventory.types';
+import { recordAuditEvent } from '../audit/audit.service';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 
@@ -62,17 +63,20 @@ export const increaseStock = async (
   return updated;
 };
 
-export const addStock = async (productId: string, quantity: number, note?: string) => {
+export const addStock = async (productId: string, quantity: number, actorId: string, note?: string) => {
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw badRequest('Stock quantity must be a positive integer');
   }
-  return prisma.$transaction((tx) =>
-    increaseStock(tx, productId, quantity, {
+  return prisma.$transaction(async (tx) => {
+    const updated = await increaseStock(tx, productId, quantity, {
       type: 'MANUAL_ADDITION',
       referenceType: 'MANUAL',
       note,
-    }),
-  );
+    });
+    await recordAuditEvent(tx, { actorId, action: 'stock.added', entityType: 'Product', entityId: productId,
+      summary: `Added ${quantity} units to stock${note ? `: ${note}` : ''}` });
+    return updated;
+  });
 };
 
 // Reserves `quantity` units for a product. Must run inside the same transaction that

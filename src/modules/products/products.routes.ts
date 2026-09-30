@@ -19,7 +19,7 @@ productsRouter.post(
   requirePermission('products.write'),
   asyncHandler(async (req, res) => {
     const input = createProductSchema.parse(req.body);
-    res.status(201).json(await createProduct(input));
+    res.status(201).json(await createProduct(input, req.user!.userId));
   }),
 );
 

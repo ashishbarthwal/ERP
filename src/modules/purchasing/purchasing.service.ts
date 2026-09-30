@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { badRequest, notFound } from '../../lib/errors';
 import { increaseStock } from '../inventory/inventory.service';
 import type { CreatePurchaseOrderInput } from './purchasing.types';
+import { recordAuditEvent } from '../audit/audit.service';
 
 const purchaseOrderInclude = {
   supplier: true,
@@ -22,7 +23,7 @@ export const getPurchaseOrder = async (id: string) => {
   return purchaseOrder;
 };
 
-export const createPurchaseOrder = async (input: CreatePurchaseOrderInput) => {
+export const createPurchaseOrder = async (input: CreatePurchaseOrderInput, actorId: string) => {
   const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId } });
   if (!supplier) {
     throw notFound(`Supplier ${input.supplierId} not found`);
@@ -37,16 +38,21 @@ export const createPurchaseOrder = async (input: CreatePurchaseOrderInput) => {
     throw badRequest('One or more products do not exist');
   }
 
-  return prisma.purchaseOrder.create({
-    data: {
-      supplierId: input.supplierId,
-      items: { create: input.items },
-    },
-    include: purchaseOrderInclude,
+  return prisma.$transaction(async (tx) => {
+    const purchaseOrder = await tx.purchaseOrder.create({
+      data: {
+        supplierId: input.supplierId,
+        items: { create: input.items },
+      },
+      include: purchaseOrderInclude,
+    });
+    await recordAuditEvent(tx, { actorId, action: 'purchase_order.created', entityType: 'PurchaseOrder', entityId: purchaseOrder.id,
+      summary: `Created purchase order for ${purchaseOrder.supplier.name}` });
+    return purchaseOrder;
   });
 };
 
-export const submitPurchaseOrder = async (id: string) => prisma.$transaction(async (tx) => {
+export const submitPurchaseOrder = async (id: string, actorId: string) => prisma.$transaction(async (tx) => {
   const locked = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
   `;
@@ -56,14 +62,17 @@ export const submitPurchaseOrder = async (id: string) => prisma.$transaction(asy
   if (purchaseOrder.status !== 'DRAFT') {
     throw badRequest(`Only DRAFT purchase orders can be submitted (current status: ${purchaseOrder.status})`);
   }
-  return tx.purchaseOrder.update({
+  const submitted = await tx.purchaseOrder.update({
     where: { id },
     data: { status: 'ORDERED', orderedAt: new Date() },
     include: purchaseOrderInclude,
   });
+  await recordAuditEvent(tx, { actorId, action: 'purchase_order.submitted', entityType: 'PurchaseOrder', entityId: id,
+    summary: `Submitted purchase order to ${purchaseOrder.supplier.name}` });
+  return submitted;
 });
 
-export const receivePurchaseOrder = async (id: string) =>
+export const receivePurchaseOrder = async (id: string, actorId: string) =>
   prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
@@ -86,14 +95,17 @@ export const receivePurchaseOrder = async (id: string) =>
       });
     }
 
-    return tx.purchaseOrder.update({
+    const received = await tx.purchaseOrder.update({
       where: { id },
       data: { status: 'RECEIVED', receivedAt: new Date() },
       include: purchaseOrderInclude,
     });
+    await recordAuditEvent(tx, { actorId, action: 'purchase_order.received', entityType: 'PurchaseOrder', entityId: id,
+      summary: `Received purchase order from ${purchaseOrder.supplier.name}` });
+    return received;
   });
 
-export const cancelPurchaseOrder = async (id: string) => prisma.$transaction(async (tx) => {
+export const cancelPurchaseOrder = async (id: string, actorId: string) => prisma.$transaction(async (tx) => {
   const locked = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
   `;
@@ -106,9 +118,12 @@ export const cancelPurchaseOrder = async (id: string) => prisma.$transaction(asy
   if (purchaseOrder.status === 'CANCELLED') {
     throw badRequest('Purchase order is already cancelled');
   }
-  return tx.purchaseOrder.update({
+  const cancelled = await tx.purchaseOrder.update({
     where: { id },
     data: { status: 'CANCELLED' },
     include: purchaseOrderInclude,
   });
+  await recordAuditEvent(tx, { actorId, action: 'purchase_order.cancelled', entityType: 'PurchaseOrder', entityId: id,
+    summary: `Cancelled purchase order to ${purchaseOrder.supplier.name}` });
+  return cancelled;
 });

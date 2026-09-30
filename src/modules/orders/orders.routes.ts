@@ -19,7 +19,7 @@ ordersRouter.post(
   requirePermission('orders.write'),
   asyncHandler(async (req, res) => {
     const input = createOrderSchema.parse(req.body);
-    res.status(201).json(await createOrder(input));
+    res.status(201).json(await createOrder(input, req.user!.userId));
   }),
 );
 
@@ -34,7 +34,7 @@ ordersRouter.post(
   '/:id/confirm',
   requirePermission('orders.write'),
   asyncHandler(async (req, res) => {
-    res.json(await confirmOrder(req.params.id));
+    res.json(await confirmOrder(req.params.id, req.user!.userId));
   }),
 );
 
@@ -42,6 +42,6 @@ ordersRouter.post(
   '/:id/cancel',
   requirePermission('orders.write'),
   asyncHandler(async (req, res) => {
-    res.json(await cancelOrder(req.params.id));
+    res.json(await cancelOrder(req.params.id, req.user!.userId));
   }),
 );

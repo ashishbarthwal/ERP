@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { conflict, notFound } from '../../lib/errors';
 import type { CreateProductInput } from './products.types';
+import { recordAuditEvent } from '../audit/audit.service';
 
 export const listProducts = () =>
   prisma.product.findMany({ include: { inventoryItem: true }, orderBy: { createdAt: 'desc' } });
@@ -21,7 +22,7 @@ export const getProduct = async (id: string) => {
 
 // Creating a product always creates its (zero-quantity) inventory row in the same
 // transaction, so every product is guaranteed to have exactly one inventory record.
-export const createProduct = async (input: CreateProductInput) => {
+export const createProduct = async (input: CreateProductInput, actorId: string) => {
   const existing = await prisma.product.findUnique({ where: { sku: input.sku } });
   if (existing) {
     throw conflict('SKU already exists');
@@ -30,6 +31,9 @@ export const createProduct = async (input: CreateProductInput) => {
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.create({ data: input });
     await tx.inventoryItem.create({ data: { productId: product.id } });
-    return tx.product.findUniqueOrThrow({ where: { id: product.id }, include: { inventoryItem: true } });
+    const created = await tx.product.findUniqueOrThrow({ where: { id: product.id }, include: { inventoryItem: true } });
+    await recordAuditEvent(tx, { actorId, action: 'product.created', entityType: 'Product', entityId: product.id,
+      summary: `Created product ${product.name} (${product.sku})` });
+    return created;
   });
 };

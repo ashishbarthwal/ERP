@@ -20,6 +20,21 @@ model User {
   name         String
   role         String   @default("STAFF")
   createdAt    DateTime @default(now())
+  auditEvents  AuditEvent[]
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model Customer {

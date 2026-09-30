@@ -19,7 +19,7 @@ invoicesRouter.post(
   requirePermission('invoices.write'),
   asyncHandler(async (req, res) => {
     const input = createInvoiceSchema.parse(req.body);
-    res.status(201).json(await createInvoice(input));
+    res.status(201).json(await createInvoice(input, req.user!.userId));
   }),
 );
 
@@ -35,6 +35,6 @@ invoicesRouter.post(
   requirePermission('payments.write'),
   asyncHandler(async (req, res) => {
     const input = recordPaymentSchema.parse(req.body);
-    res.status(200).json(await recordPayment(req.params.id, input));
+    res.status(200).json(await recordPayment(req.params.id, input, req.user!.userId));
   }),
 );

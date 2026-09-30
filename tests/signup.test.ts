@@ -11,13 +11,25 @@ test('public signup stays pending until an administrator assigns a role', async 
   const records = new Map<string, any>();
   const delegate = prisma.user as any;
   const originals = ['findUnique', 'create', 'updateMany'].map(name => [name, Object.getOwnPropertyDescriptor(delegate, name)] as const);
+  const audit = prisma.auditEvent as any;
+  const auditOriginal = Object.getOwnPropertyDescriptor(audit, 'create');
+  const transactionOriginal = Object.getOwnPropertyDescriptor(prisma, '$transaction');
   t.after(() => {
     for (const [name, descriptor] of originals) {
       if (descriptor) Object.defineProperty(delegate, name, descriptor);
     }
+    if (auditOriginal) Object.defineProperty(audit, 'create', auditOriginal);
+    if (transactionOriginal) Object.defineProperty(prisma, '$transaction', transactionOriginal);
   });
+  (prisma as any).$transaction = async (callback: (tx: any) => unknown) => callback(prisma as any);
+  audit.create = async ({ data }: any) => ({ id: 'audit-event', ...data });
   delegate.findUnique = async ({ where }: any) =>
     where.email ? records.get(where.email) ?? null : [...records.values()].find(user => user.id === where.id) ?? null;
+  delegate.findUniqueOrThrow = async ({ where }: any) => {
+    const user = [...records.values()].find(user => user.id === where.id);
+    if (!user) throw new Error('User not found');
+    return user;
+  };
   delegate.create = async ({ data }: any) => {
     const user = { ...data, id: 'new-user' };
     records.set(user.email, user);
@@ -44,10 +56,10 @@ test('public signup stays pending until an administrator assigns a role', async 
     requireAuth({ headers: { authorization: `Bearer ${pendingToken}` } } as any, {} as any, resolve));
   assert.equal(middlewareError.statusCode, 403);
 
-  await approveUser(id, approveUserSchema.parse({ role: 'SALES' }).role);
+  await approveUser(id, approveUserSchema.parse({ role: 'SALES' }).role, 'admin-id');
   const session = await loginUser({ email: input.email, password: input.password });
   assert.equal(session.user.role, 'SALES');
   assert.ok(session.token);
-  await assert.rejects(approveUser(id, 'ADMIN'), { statusCode: 404 });
+  await assert.rejects(approveUser(id, 'ADMIN', 'admin-id'), { statusCode: 404 });
   await prisma.$disconnect();
 });

@@ -12,11 +12,12 @@ as an independent development, staging, or production-like target.
 The application includes:
 
 - cookie-based web authentication and JWT API authentication
-- server-enforced Admin, Sales, Purchasing, Inventory, and read-only Staff roles; Admin-only user creation and payment recording
+- server-enforced Admin, Sales, Purchasing, Inventory, and read-only Staff roles; public account requests wait for an Admin to assign a role; payment recording remains Admin-only
 - customers, suppliers, products, and inventory
 - sales orders, purchase orders, invoices, and payments
 - atomic stock reservation, receipt, release, and consumption workflows
 - Prisma migrations and deterministic development seed data
+- an Admin-only activity log for committed account, stock, sales, purchasing, invoice, and payment actions
 - an authenticated operational analytics cockpit with period filters and daily CSV export
 
 See the [product and production-readiness roadmap](docs/ROADMAP.md) for the

@@ -472,7 +472,7 @@
           <a href="/suppliers" <% if (pageTitle === 'Suppliers') { %>aria-current="page"<% } %>>Suppliers</a>
           <a href="/products" <% if (pageTitle === 'Products') { %>aria-current="page"<% } %>>Products</a>
         </nav>
-        <% if (locals.can?.('users.write')) { %><p class="nav-label" style="margin-top:24px">Administration</p><nav aria-label="Administration navigation"><a href="/users" <% if (pageTitle === 'Users') { %>aria-current="page"<% } %>>Users</a></nav><% } %>
+        <% if (locals.can?.('users.write')) { %><p class="nav-label" style="margin-top:24px">Administration</p><nav aria-label="Administration navigation"><a href="/users" <% if (pageTitle === 'Users') { %>aria-current="page"<% } %>>Users</a><a href="/activity" <% if (pageTitle === 'Activity log') { %>aria-current="page"<% } %>>Activity log</a></nav><% } %>
         <div class="sidebar-footer"><strong><%= locals.user?.name || 'Workspace user' %></strong><%= locals.user?.role || 'Staff' %><form action="/logout" method="post" style="margin-top:14px"><%- include('csrf') %><button class="nav-action" type="submit">Log out</button></form></div>
       <% } else { %>
         <nav aria-label="Account navigation"><a href="/login">Log in</a></nav>

@@ -17,7 +17,7 @@ suppliersRouter.post(
   requirePermission('suppliers.write'),
   asyncHandler(async (req, res) => {
     const input = createSupplierSchema.parse(req.body);
-    res.status(201).json(await createSupplier(input));
+    res.status(201).json(await createSupplier(input, req.user!.userId));
   }),
 );
 

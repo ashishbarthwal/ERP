@@ -27,6 +27,6 @@ inventoryRouter.post(
   requirePermission('inventory.write'),
   asyncHandler(async (req, res) => {
     const input = addStockSchema.parse(req.body);
-    res.status(200).json(await addStock(req.params.productId, input.quantity, input.note));
+    res.status(200).json(await addStock(req.params.productId, input.quantity, req.user!.userId, input.note));
   }),
 );

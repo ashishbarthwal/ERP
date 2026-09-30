@@ -4,32 +4,40 @@ import { signToken } from '../../lib/jwt';
 import { asRole, type Role } from '../../lib/permissions';
 import { conflict, forbidden, notFound, unauthorized } from '../../lib/errors';
 import type { LoginInput, RegisterInput, SignupInput } from './auth.types';
+import { recordAuditEvent } from '../audit/audit.service';
 
-const createUser = async (input: Pick<RegisterInput, 'email' | 'name' | 'password'>, role: Role) => {
+const createUser = async (input: Pick<RegisterInput, 'email' | 'name' | 'password'>, role: Role, actorId: string | null) => {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) {
     throw conflict('Email already registered');
   }
 
   const passwordHash = await hashPassword(input.password);
-  const user = await prisma.user.create({
-    data: { email: input.email, name: input.name, passwordHash, role },
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: { email: input.email, name: input.name, passwordHash, role },
+    });
+    await recordAuditEvent(tx, { actorId, action: role === 'PENDING' ? 'user.signup_requested' : 'user.created',
+      entityType: 'User', entityId: user.id, summary: role === 'PENDING'
+        ? `Account request submitted for ${user.name}` : `Created ${role.toLowerCase()} account for ${user.name}` });
+    return { id: user.id, email: user.email, name: user.name, role: user.role };
   });
-
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
 };
 
-export const registerUser = async (input: RegisterInput) => createUser(input, input.role);
+export const registerUser = async (input: RegisterInput, actorId: string) => createUser(input, input.role, actorId);
 
 export const signupUser = async (input: SignupInput) => {
-  const user = await createUser(input, 'PENDING');
+  const user = await createUser(input, 'PENDING', null);
   return user.id;
 };
 
-export const approveUser = async (userId: string, role: Exclude<Role, 'PENDING'>) => {
-  const result = await prisma.user.updateMany({ where: { id: userId, role: 'PENDING' }, data: { role } });
+export const approveUser = async (userId: string, role: Exclude<Role, 'PENDING'>, actorId: string) => prisma.$transaction(async (tx) => {
+  const result = await tx.user.updateMany({ where: { id: userId, role: 'PENDING' }, data: { role } });
   if (result.count !== 1) throw notFound('Pending account not found');
-};
+  const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+  await recordAuditEvent(tx, { actorId, action: 'user.approved', entityType: 'User', entityId: userId,
+    summary: `Approved ${user.name} as ${role.toLowerCase()}` });
+});
 
 export const loginUser = async (input: LoginInput) => {
   const user = await prisma.user.findUnique({ where: { email: input.email } });

@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { badRequest, notFound } from '../../lib/errors';
 import { consumeReservedStock } from '../inventory/inventory.service';
 import type { CreateInvoiceInput, RecordPaymentInput } from './invoices.types';
+import { recordAuditEvent } from '../audit/audit.service';
 
 const invoiceInclude = {
   items: { include: { product: true } },
@@ -26,7 +27,7 @@ export const getInvoice = async (id: string) => {
 // Generating an invoice snapshots the order's items/prices, consumes the reserved
 // stock those items were holding (goods are considered shipped/billed at this point
 // in our simplified workflow), and totals the invoice from the line items.
-export const createInvoice = async (input: CreateInvoiceInput) => {
+export const createInvoice = async (input: CreateInvoiceInput, actorId: string) => {
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "Order" WHERE "id" = ${input.orderId} FOR UPDATE
@@ -46,7 +47,7 @@ export const createInvoice = async (input: CreateInvoiceInput) => {
       await consumeReservedStock(tx, item.productId, item.quantity, order.id);
     }
 
-    return tx.invoice.create({
+    const invoice = await tx.invoice.create({
       data: {
         orderId: order.id,
         totalCents,
@@ -60,12 +61,15 @@ export const createInvoice = async (input: CreateInvoiceInput) => {
       },
       include: invoiceInclude,
     });
+    await recordAuditEvent(tx, { actorId, action: 'invoice.issued', entityType: 'Invoice', entityId: invoice.id,
+      summary: `Issued invoice for sales order ${order.id}` });
+    return invoice;
   });
 };
 
 // Payments accumulate against an invoice; once the sum reaches the total the invoice
 // becomes PAID. Overpayment and payment against a non-PENDING invoice are rejected.
-export const recordPayment = async (invoiceId: string, input: RecordPaymentInput) => {
+export const recordPayment = async (invoiceId: string, input: RecordPaymentInput, actorId: string) => {
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE
@@ -89,10 +93,13 @@ export const recordPayment = async (invoiceId: string, input: RecordPaymentInput
     });
 
     const isFullyPaid = newTotal === invoice.totalCents;
-    return tx.invoice.update({
+    const updatedInvoice = await tx.invoice.update({
       where: { id: invoiceId },
       data: isFullyPaid ? { status: 'PAID', paidAt: new Date() } : {},
       include: invoiceInclude,
     });
+    await recordAuditEvent(tx, { actorId, action: 'invoice.payment_recorded', entityType: 'Invoice', entityId: invoiceId,
+      summary: `Recorded payment of $${(input.amountCents / 100).toFixed(2)}${isFullyPaid ? ' and marked invoice paid' : ''}` });
+    return updatedInvoice;
   });
 };

@@ -51,6 +51,7 @@ export const attachOptionalUser = async (req: Request, res: Response, next: Next
     'purchase-orders': 'Purchase orders',
     users: 'Users',
     register: 'Users',
+    activity: 'Activity log',
   };
   res.locals.pageTitle = titles[section] ?? (section ? section.charAt(0).toUpperCase() + section.slice(1) : 'Welcome');
   next();

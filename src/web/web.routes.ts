@@ -175,10 +175,19 @@ webRouter.get('/users', requireWebPermission('users.write'), async (req, res) =>
   res.render('users/list', { users, pendingUsers: users.filter(user => user.role === 'PENDING'), error: req.query.error });
 });
 
+webRouter.get('/activity', requireWebPermission('users.write'), async (_req, res) => {
+  const events = await prisma.auditEvent.findMany({
+    include: { actor: { select: { name: true, email: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  res.render('audit/list', { events });
+});
+
 webRouter.post('/users/:id/approve', requireWebPermission('users.write'), async (req, res) => {
   try {
     const { role } = approveUserSchema.parse(req.body);
-    await approveUser(req.params.id, role);
+    await approveUser(req.params.id, role, req.user!.userId);
     res.redirect('/users');
   } catch (err) {
     res.redirect(`/users?error=${encodeURIComponent(errorMessage(err))}`);
@@ -192,7 +201,7 @@ webRouter.get('/register', requireWebPermission('users.write'), (req, res) => {
 webRouter.post('/register', requireWebPermission('users.write'), async (req, res) => {
   try {
     const input = registerSchema.parse(req.body);
-    await registerUser(input);
+    await registerUser(input, req.user!.userId);
     res.redirect('/users');
   } catch (err) {
     res.status(formErrorStatus(err)).render('register', {
@@ -275,7 +284,7 @@ webRouter.get('/customers/new', requireWebPermission('customers.write'), (req, r
 webRouter.post('/customers', requireWebPermission('customers.write'), async (req, res) => {
   try {
     const input = createCustomerSchema.parse(req.body);
-    await createCustomer(input);
+    await createCustomer(input, req.user!.userId);
     res.redirect('/customers');
   } catch (err) {
     res.status(formErrorStatus(err)).render('customers/new', {
@@ -307,7 +316,7 @@ webRouter.post('/products', requireWebPermission('products.write'), async (req, 
       ? parseMoneyDollarsToCents(req.body.priceDollars, 'sale price')
       : Number(req.body.priceCents);
     const input = createProductSchema.parse({ ...req.body, priceCents });
-    await createProduct(input);
+    await createProduct(input, req.user!.userId);
     res.redirect('/products');
   } catch (err) {
     res.status(formErrorStatus(err)).render('products/new', {
@@ -326,7 +335,7 @@ webRouter.get('/products/:id', requireWebAuth, async (req, res) => {
 
 webRouter.post('/products/:id/stock', requireWebPermission('inventory.write'), async (req, res) => {
   try {
-    await addStock(req.params.id, Number(req.body.quantity), req.body.note ? String(req.body.note) : undefined);
+    await addStock(req.params.id, Number(req.body.quantity), req.user!.userId, req.body.note ? String(req.body.note) : undefined);
     res.redirect(`/products/${req.params.id}`);
   } catch (err) {
     return res.status(formErrorStatus(err)).render('products/show', {
@@ -348,7 +357,7 @@ webRouter.post('/orders', requireWebPermission('orders.write'), async (req, res)
       customerId: req.body.customerId,
       items: parseOrderItems(req.body.items),
     });
-    const order = await createOrder(input);
+    const order = await createOrder(input, req.user!.userId);
     res.redirect(`/orders/${order.id}`);
   } catch (err) {
     const [customers, products] = await Promise.all([listCustomers(), listProducts()]);
@@ -365,7 +374,7 @@ webRouter.get('/orders/:id', requireWebAuth, async (req, res) => {
 
 webRouter.post('/orders/:id/confirm', requireWebPermission('orders.write'), async (req, res) => {
   try {
-    await confirmOrder(req.params.id);
+    await confirmOrder(req.params.id, req.user!.userId);
   } catch (err) {
     return res.redirect(`/orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }
@@ -374,7 +383,7 @@ webRouter.post('/orders/:id/confirm', requireWebPermission('orders.write'), asyn
 
 webRouter.post('/orders/:id/cancel', requireWebPermission('orders.write'), async (req, res) => {
   try {
-    await cancelOrder(req.params.id);
+    await cancelOrder(req.params.id, req.user!.userId);
   } catch (err) {
     return res.redirect(`/orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }
@@ -384,7 +393,7 @@ webRouter.post('/orders/:id/cancel', requireWebPermission('orders.write'), async
 webRouter.post('/orders/:id/invoice', requireWebPermission('invoices.write'), async (req, res) => {
   try {
     const input = createInvoiceSchema.parse({ orderId: req.params.id });
-    const invoice = await createInvoice(input);
+    const invoice = await createInvoice(input, req.user!.userId);
     res.redirect(`/invoices/${invoice.id}`);
   } catch (err) {
     res.redirect(`/orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
@@ -406,7 +415,7 @@ webRouter.post('/invoices/:id/payments', requireWebPermission('payments.write'),
       amountCents: parseDollarsToCents(req.body.amountDollars),
       method: req.body.method || undefined,
     });
-    await recordPayment(req.params.id, input);
+    await recordPayment(req.params.id, input, req.user!.userId);
   } catch (err) {
     const invoice = await getInvoice(req.params.id);
     const outstanding = invoice.totalCents - invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
@@ -434,7 +443,7 @@ webRouter.get('/suppliers/new', requireWebPermission('suppliers.write'), (req, r
 webRouter.post('/suppliers', requireWebPermission('suppliers.write'), async (req, res) => {
   try {
     const input = createSupplierSchema.parse(req.body);
-    await createSupplier(input);
+    await createSupplier(input, req.user!.userId);
     res.redirect('/suppliers');
   } catch (err) {
     res.status(formErrorStatus(err)).render('suppliers/new', {
@@ -463,7 +472,7 @@ webRouter.post('/purchase-orders', requireWebPermission('purchases.write'), asyn
       supplierId: req.body.supplierId,
       items: parsePurchaseOrderItems(req.body.items),
     });
-    const purchaseOrder = await createPurchaseOrder(input);
+    const purchaseOrder = await createPurchaseOrder(input, req.user!.userId);
     res.redirect(`/purchase-orders/${purchaseOrder.id}`);
   } catch (err) {
     const [suppliers, products] = await Promise.all([listSuppliers(), listProducts()]);
@@ -483,7 +492,7 @@ webRouter.get('/purchase-orders/:id', requireWebAuth, async (req, res) => {
 
 webRouter.post('/purchase-orders/:id/submit', requireWebPermission('purchases.write'), async (req, res) => {
   try {
-    await submitPurchaseOrder(req.params.id);
+    await submitPurchaseOrder(req.params.id, req.user!.userId);
   } catch (err) {
     return res.redirect(`/purchase-orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }
@@ -492,7 +501,7 @@ webRouter.post('/purchase-orders/:id/submit', requireWebPermission('purchases.wr
 
 webRouter.post('/purchase-orders/:id/receive', requireWebPermission('purchases.receive'), async (req, res) => {
   try {
-    await receivePurchaseOrder(req.params.id);
+    await receivePurchaseOrder(req.params.id, req.user!.userId);
   } catch (err) {
     return res.redirect(`/purchase-orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }
@@ -501,7 +510,7 @@ webRouter.post('/purchase-orders/:id/receive', requireWebPermission('purchases.r
 
 webRouter.post('/purchase-orders/:id/cancel', requireWebPermission('purchases.write'), async (req, res) => {
   try {
-    await cancelPurchaseOrder(req.params.id);
+    await cancelPurchaseOrder(req.params.id, req.user!.userId);
   } catch (err) {
     return res.redirect(`/purchase-orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }

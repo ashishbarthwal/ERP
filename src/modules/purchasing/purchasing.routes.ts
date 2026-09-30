@@ -24,7 +24,7 @@ purchasingRouter.post(
   requirePermission('purchases.write'),
   asyncHandler(async (req, res) => {
     const input = createPurchaseOrderSchema.parse(req.body);
-    res.status(201).json(await createPurchaseOrder(input));
+    res.status(201).json(await createPurchaseOrder(input, req.user!.userId));
   }),
 );
 
@@ -36,18 +36,18 @@ purchasingRouter.get(
 purchasingRouter.post(
   '/:id/submit',
   requirePermission('purchases.write'),
-  asyncHandler(async (req, res) => res.json(await submitPurchaseOrder(req.params.id))),
+  asyncHandler(async (req, res) => res.json(await submitPurchaseOrder(req.params.id, req.user!.userId))),
 );
 
 purchasingRouter.post(
   '/:id/receive',
   requirePermission('purchases.receive'),
-  asyncHandler(async (req, res) => res.json(await receivePurchaseOrder(req.params.id))),
+  asyncHandler(async (req, res) => res.json(await receivePurchaseOrder(req.params.id, req.user!.userId))),
 );
 
 purchasingRouter.post(
   '/:id/cancel',
   requirePermission('purchases.write'),
-  asyncHandler(async (req, res) => res.json(await cancelPurchaseOrder(req.params.id))),
+  asyncHandler(async (req, res) => res.json(await cancelPurchaseOrder(req.params.id, req.user!.userId))),
 );
 
