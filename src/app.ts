@@ -18,12 +18,13 @@ import { parseCorsOrigins } from './config/runtime-config';
 import { requestLoggingMiddleware } from './middleware/request-logging.middleware';
 import { secureCookiesAndTransport } from './config/environment';
 
-export const createApp = (trustProxyHops = 0) => {
+export const createApp = (trustProxyHops = 0, releaseSha = process.env.APP_RELEASE_SHA || 'development') => {
   const app = express();
   app.set('trust proxy', trustProxyHops);
   app.disable('x-powered-by');
   app.use(requestLoggingMiddleware);
   app.use((_req, res, next) => {
+    res.setHeader('X-ERP-Release', releaseSha);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'same-origin');

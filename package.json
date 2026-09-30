@@ -10,13 +10,14 @@
     "start": "node scripts/run-app.cjs start",
     "typecheck": "tsc --noEmit",
     "test:auth": "tsx --test tests/*.test.ts",
-    "test:ops": "node --test scripts/db/*.test.cjs",
+    "test:ops": "node --test scripts/db/*.test.cjs scripts/release/*.test.cjs",
     "db:reconcile": "node scripts/db/reconcile.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "db:backup-restore:smoke": "node scripts/db/backup-restore-smoke.cjs"
+    "db:backup-restore:smoke": "node scripts/db/backup-restore-smoke.cjs",
+    "release:preflight": "node scripts/release/preflight.cjs"
   },
   "license": "ISC",
   "dependencies": {
@@ -29,6 +30,7 @@
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^10.0.13",
+    "prisma": "^5.22.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -39,7 +41,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.7.0",
     "@types/nodemailer": "^8.0.2",
-    "prisma": "^5.20.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.2"
   },

@@ -37,8 +37,14 @@ export const parseCorsOrigins = (value: string | undefined) =>
   });
 
 export const parseRuntimeConfig = (environment: RuntimeEnvironment) => {
-  if (!['development', 'test', 'staging', 'production'].includes(environment.NODE_ENV ?? '')) {
+  const nodeEnvironment = environment.NODE_ENV ?? '';
+  if (!['development', 'test', 'staging', 'production'].includes(nodeEnvironment)) {
     throw new Error('NODE_ENV must be explicitly set to development, test, staging, or production');
+  }
+  const deployed = ['staging', 'production'].includes(nodeEnvironment);
+  const releaseSha = environment.APP_RELEASE_SHA?.trim() || (deployed ? required(environment, 'APP_RELEASE_SHA') : 'development');
+  if (deployed && !/^[a-f0-9]{40}$/i.test(releaseSha)) {
+    throw new Error('APP_RELEASE_SHA must be the full 40-character Git commit SHA in staging and production');
   }
   validateMailConfiguration(environment);
   const databaseUrl = required(environment, 'DATABASE_URL');
@@ -67,7 +73,8 @@ export const parseRuntimeConfig = (environment: RuntimeEnvironment) => {
     trustProxyHops,
     authLoginAttemptLimit,
     authSignupAttemptLimit,
-    production: environment.NODE_ENV === 'production',
+    production: nodeEnvironment === 'production',
+    releaseSha,
     corsOrigins: new Set(parseCorsOrigins(environment.CORS_ORIGINS)),
   };
 };

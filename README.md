@@ -30,6 +30,8 @@ reservations, order/invoice snapshots, payment totals, and receipt/consumption
 movements. It reports mismatching counts without printing record identifiers.
 See the [database recovery runbook](docs/OPERATIONS_RECOVERY.md) for the
 staging restore and cutover procedure; it still needs a staging rehearsal.
+See the [staging deployment runbook](docs/STAGING_DEPLOYMENT.md) for the
+immutable container, release preflight, verification, and rollback procedure.
 
 ## Stack
 
@@ -55,6 +57,10 @@ Set `NODE_ENV=development` for local work. `npm run dev` supplies it when it is
 not already set; `npm start` defaults to `production`. The server refuses to
 start unless `NODE_ENV` is explicitly one of `development`, `test`, `staging`,
 or `production`.
+
+Staging and production also require `APP_RELEASE_SHA` to contain the full Git
+commit SHA. Responses include that value in `X-ERP-Release`, allowing operators
+to verify which revision is serving traffic.
 
 Set `ERP_SEED_ADMIN_PASSWORD` to a unique password before seeding Neon; the
 local-only default is not allowed for hosted databases.
@@ -88,6 +94,10 @@ npm run build
 npm start
 node scripts/smoke-access.cjs
 ```
+
+For a staging release, build the container with its immutable revision and run
+`npm run release:preflight -- <full-commit-sha>` before applying migrations.
+The staging deployment runbook contains the complete sequence.
 
 ## Repository boundary
 

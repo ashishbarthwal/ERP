@@ -15,6 +15,7 @@ test('staging sends HSTS and Secure CSRF cookies', async () => {
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('strict-transport-security'), 'max-age=31536000');
     assert.match(response.headers.get('set-cookie') ?? '', /erp_csrf=[^;]+;[^\r\n]*Secure/i);
+    assert.equal(response.headers.get('x-erp-release'), 'development');
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));

@@ -50,6 +50,9 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Build immutable deployment image
+        run: docker build --build-arg "VCS_REF=${{ github.event.pull_request.head.sha || github.sha }}" --tag "mini-erp:${{ github.event.pull_request.head.sha || github.sha }}" .
+        working-directory: ${{ github.workspace }}/erp
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a CI-verified framework commit.
         uses: ashishbarthwal/ai-self-healing-test-automation-framework@96f8d82fd24cde85ece2795cf4ccb977f04a6778

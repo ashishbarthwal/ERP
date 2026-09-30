@@ -9,13 +9,11 @@ and portfolio quality and should not be used to imply that business data is safe
 **3.2/10 for live business deployment.** This is a judgment call, not a test
 result. The application has meaningful security, transaction, and workflow
 coverage, but it has not yet demonstrated an operated production-like service.
-The latest passing CI run on `31bd23b` includes the manual-stock retry fix and
+The latest passing CI run includes concurrent manual-stock retry coverage and
 the disposable PostgreSQL recovery/reconciliation gates. The additive stock
 idempotency migration is applied to the development database. Those are useful
 engineering proofs; they do not replace deployment, monitored operation, or a
-restore drill using the chosen hosting and backup services. The test contract
-for concurrent stock retries is being tightened separately and is not included
-in that passing run.
+restore drill using the chosen hosting and backup services.
 
 ## Fastest credible path
 
@@ -116,10 +114,12 @@ development data or claim the deployment gate passed.
 
 ## Next work queue
 
-1. Finish and pass the concurrent manual-stock retry contract; pin the exact
-   tested framework revision in the ERP workflow.
-2. Select a staging provider and document target isolation before deploying.
-3. Build the staging deployment and rollback steps.
+1. **Complete:** pass the concurrent manual-stock retry contract and pin the
+   exact tested framework revision in the ERP workflow.
+2. **Repository work complete:** build an immutable container, require exact
+   release identity, and document staging deployment and rollback. CI still
+   needs to validate the container on this revision.
+3. Select a staging provider and document target isolation before deploying.
 4. Configure scheduled backups and run the provider-level restore drill.
 5. Add monitoring, alert tests, and incident runbooks.
 6. Complete the supervised signed-in accessibility/usability review.
