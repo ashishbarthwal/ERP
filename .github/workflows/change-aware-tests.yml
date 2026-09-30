@@ -18,7 +18,7 @@ concurrency:
 jobs:
   contracts:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -40,15 +40,16 @@ jobs:
       AUTH_LOGIN_ATTEMPT_LIMIT: '250'
       AUTH_SIGNUP_ATTEMPT_LIMIT: '250'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
           path: erp
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a published framework commit.
         uses: ashishbarthwal/ai-self-healing-test-automation-framework@deb61c1a361128ac3ebeb1cbeb5a4faec48e4eae
