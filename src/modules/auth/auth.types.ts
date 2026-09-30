@@ -1,9 +1,13 @@
 import { z } from 'zod';
 import { assignableRoles } from '../../lib/permissions';
 
+const passwordSchema = z.string().min(12).max(72).refine(password => Buffer.byteLength(password, 'utf8') <= 72, {
+  message: 'Password must be no longer than 72 bytes',
+});
+
 export const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(8),
+  password: passwordSchema,
   name: z.string().trim().min(1),
   role: z.enum(assignableRoles).default('STAFF'),
 });

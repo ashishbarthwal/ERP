@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { prisma } from '../src/lib/prisma';
 import { approveUser, changePassword, changeUserRole, loginUser, setUserActive, signupUser } from '../src/modules/auth/auth.service';
-import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, signupSchema } from '../src/modules/auth/auth.types';
+import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, registerSchema, signupSchema } from '../src/modules/auth/auth.types';
 import { requireAuth } from '../src/middleware/auth.middleware';
 import { signToken } from '../src/lib/jwt';
 
@@ -74,6 +74,8 @@ test('public signup stays pending until an administrator assigns a role', async 
   delegate.count = async ({ where }: any) => [...records.values()].filter(user => user.role === where.role && user.active === where.active).length;
 
   assert.equal(signupSchema.safeParse({ name: 'New Operator', email: 'new@example.test', password: 'Password123!', confirmPassword: 'different' }).success, false);
+  assert.equal(registerSchema.safeParse({ name: 'New Operator', email: 'new@example.test', password: 'short-pass', role: 'STAFF' }).success, false);
+  assert.equal(registerSchema.safeParse({ name: 'New Operator', email: 'new@example.test', password: 'é'.repeat(37), role: 'STAFF' }).success, false);
   const input = signupSchema.parse({ name: 'New Operator', email: 'NEW@example.test', password: 'Password123!', confirmPassword: 'Password123!', role: 'ADMIN' });
   const id = await signupUser(input);
   assert.equal(records.get(input.email).role, 'PENDING');
