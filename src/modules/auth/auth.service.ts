@@ -47,6 +47,10 @@ export const setUserActive = async (userId: string, active: boolean, actorId: st
       SELECT "id" FROM "User" WHERE "role" = 'ADMIN' AND "active" = true ORDER BY "id" FOR UPDATE
     `;
   }
+  const targetLock = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
+  `;
+  if (!targetLock.length) throw notFound('Approved workspace user not found');
   const actor = await tx.user.findUnique({ where: { id: actorId }, select: { role: true, active: true } });
   if (!actor?.active || actor.role !== 'ADMIN') throw forbidden('An active Admin account is required');
   if (userId === actorId) throw conflict('You cannot change access for your own account');
