@@ -172,3 +172,11 @@ model Payment {
 
   @@unique([invoiceId, idempotencyKey])
 }
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}

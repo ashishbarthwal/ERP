@@ -23,8 +23,7 @@ for core quantities and amounts, and PostgreSQL row locks across the main stock
 and money transitions. Payment APIs also support idempotent retries. Local tests
 and a separate reviewed Playwright contract suite cover these behaviors. The
 site is still not ready for live business data: email ownership verification,
-password recovery for locked-out users, shared rate limiting before multi-instance
-deployment, deployment monitoring, backup/restore drills, broader failure recovery,
+password recovery for locked-out users, deployment monitoring, backup/restore drills, broader failure recovery,
 and a signed-in desktop/mobile usability review remain open. Admins can change
 approved users' roles; role and password changes revoke existing sessions. A
 passing build and health response do not establish production readiness.
@@ -71,10 +70,10 @@ the implementation.
 3. **Implemented:** CSRF protection for browser forms, production secure
    cookies, startup validation for database URLs/JWT secret/port/CORS origins,
    and browser security headers.
-4. **Partially implemented:** limit web/API sign-in to 10 attempts per IP and
-   public signup to 5 attempts per IP in a 15-minute window. The store is
-   process-local; use a shared store/edge limit across multiple app instances.
-   Account approval, role changes, deactivation/reactivation, and self-service
+4. **Implemented:** limit web/API sign-in to 10 attempts per IP and public
+   signup to 5 attempts per IP in a 15-minute window using atomic PostgreSQL
+   buckets. The stored client keys are HMACs, so raw IP addresses are not
+   persisted. Account approval, role changes, deactivation/reactivation, and self-service
    password changes advance a token version so existing API and browser sessions
    stop working. Password changes verify the current password. Email verification
    and recovery for users who cannot sign in remain open.

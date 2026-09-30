@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import { IpRateLimiter, rateLimitMiddleware } from '../src/middleware/ip-rate-limit';
+import { IpRateLimiter, SharedIpRateLimiter, rateLimitMiddleware } from '../src/middleware/ip-rate-limit';
+import { prisma } from '../src/lib/prisma';
 
 test('IP limits count attempts, separate clients, and reset after the window', () => {
   let now = 10_000;
@@ -33,4 +34,45 @@ test('rate limit middleware returns 429, retry timing, and rate limit headers', 
   assert.equal(blocked.headers.get('ratelimit-limit'), '1');
   assert.equal(blocked.headers.get('ratelimit-remaining'), '0');
   assert.match((await blocked.json() as { error: string }).error, /Too many attempts/);
+});
+
+test('shared IP limiters use the same private PostgreSQL key across instances', async (t) => {
+  const priorSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'test-only-shared-rate-limit-secret';
+  const bucketDelegate = prisma.rateLimitBucket as any;
+  const originalDelete = Object.getOwnPropertyDescriptor(bucketDelegate, 'deleteMany');
+  const originalQuery = Object.getOwnPropertyDescriptor(prisma, '$queryRaw');
+  const counters = new Map<string, { count: number; resetAt: Date }>();
+  const keys = new Set<string>();
+  t.after(() => {
+    if (originalDelete) Object.defineProperty(bucketDelegate, 'deleteMany', originalDelete);
+    else delete bucketDelegate.deleteMany;
+    if (originalQuery) Object.defineProperty(prisma, '$queryRaw', originalQuery);
+    else delete (prisma as any).$queryRaw;
+    if (priorSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = priorSecret;
+  });
+  bucketDelegate.deleteMany = async () => ({ count: 0 });
+  (prisma as any).$queryRaw = async (_parts: TemplateStringsArray, key: string, resetAt: Date) => {
+    keys.add(key);
+    const current = counters.get(key);
+    const bucket = !current || current.resetAt.getTime() <= 10_000
+      ? { count: 1, resetAt }
+      : { count: Math.min(current.count + 1, 3), resetAt: current.resetAt };
+    counters.set(key, bucket);
+    return [{ count: bucket.count, resetAt: bucket.resetAt }];
+  };
+
+  const firstInstance = new SharedIpRateLimiter(2, 60_000, 'login', () => 10_000);
+  const secondInstance = new SharedIpRateLimiter(2, 60_000, 'login', () => 10_000);
+  const first = await firstInstance.consume('203.0.113.8');
+  const second = await secondInstance.consume('203.0.113.8');
+  const blocked = await firstInstance.consume('203.0.113.8');
+  assert.equal(first.allowed, true);
+  assert.equal(second.remaining, 0);
+  assert.equal(blocked.allowed, false);
+  assert.equal(keys.size, 1);
+  assert.doesNotMatch([...keys][0], /203\.0\.113\.8/);
+  await new SharedIpRateLimiter(2, 60_000, 'signup', () => 10_000).consume('203.0.113.8');
+  assert.equal(keys.size, 2);
 });
