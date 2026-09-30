@@ -52,7 +52,7 @@ jobs:
           package-manager-cache: false
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a published framework commit.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@deb61c1a361128ac3ebeb1cbeb5a4faec48e4eae
+        uses: ashishbarthwal/ai-self-healing-test-automation-framework@aee8717e2315e012e09ee1c8a3e06fc628b8f283
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
