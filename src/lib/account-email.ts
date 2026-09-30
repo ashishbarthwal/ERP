@@ -8,7 +8,7 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({
 export const validateMailConfiguration = (environment: Record<string, string | undefined>) => {
   const keys = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASSWORD', 'MAIL_FROM'];
   const present = keys.filter(key => Boolean(environment[key]?.trim()));
-  const localMode = !environment.NODE_ENV || ['development', 'test'].includes(environment.NODE_ENV);
+  const localMode = ['development', 'test'].includes(environment.NODE_ENV ?? '');
   if (!present.length && localMode) return { mode: 'console' as const };
   if (present.length !== keys.length) throw new Error(`Set all mail settings together: ${keys.join(', ')}`);
 

@@ -14,6 +14,7 @@ const productionMail = {
 test('local development and isolated tests use console delivery without SMTP', () => {
   assert.deepEqual(validateMailConfiguration({ NODE_ENV: 'development' }), { mode: 'console' });
   assert.deepEqual(validateMailConfiguration({ NODE_ENV: 'test' }), { mode: 'console' });
+  assert.throws(() => validateMailConfiguration({}), /Set all mail settings together/);
 });
 
 test('deployed mail requires complete SMTP settings and a public HTTPS URL', () => {

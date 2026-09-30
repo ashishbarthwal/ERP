@@ -2,15 +2,16 @@ import type { NextFunction, Request, Response } from 'express';
 import { verifyToken } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
 import { asRole, can } from '../lib/permissions';
+import { secureCookiesAndTransport } from '../config/environment';
 
 const SESSION_COOKIE = 'erp_session';
 
 export const setSessionCookie = (res: Response, token: string) => {
-  res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 12 * 60 * 60 * 1000 });
+  res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: secureCookiesAndTransport(), maxAge: 12 * 60 * 60 * 1000 });
 };
 
 export const clearSessionCookie = (res: Response) => {
-  res.clearCookie(SESSION_COOKIE, { sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+  res.clearCookie(SESSION_COOKIE, { sameSite: 'lax', secure: secureCookiesAndTransport() });
 };
 
 // Cookie-based equivalent of middleware/auth.middleware.ts's requireAuth, for the

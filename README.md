@@ -48,6 +48,11 @@ Set `DATABASE_URL` to Neon's pooled connection string for app traffic and
 `DATABASE_URL_UNPOOLED` to its direct connection string for Prisma migrations. Keep both in
 the ignored `.env` file; never commit them. The application listens on
 `http://localhost:4000` by default. Set `PORT` in `.env` to use another port.
+Set `NODE_ENV=development` for local work. `npm run dev` supplies it when it is
+not already set; `npm start` defaults to `production`. The server refuses to
+start unless `NODE_ENV` is explicitly one of `development`, `test`, `staging`,
+or `production`.
+
 Set `ERP_SEED_ADMIN_PASSWORD` to a unique password before seeding Neon; the
 local-only default is not allowed for hosted databases.
 

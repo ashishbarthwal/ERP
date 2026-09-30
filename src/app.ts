@@ -16,6 +16,7 @@ import { csrfProtection } from './web/csrf.middleware';
 import { prisma } from './lib/prisma';
 import { parseCorsOrigins } from './config/runtime-config';
 import { requestLoggingMiddleware } from './middleware/request-logging.middleware';
+import { secureCookiesAndTransport } from './config/environment';
 
 export const createApp = (trustProxyHops = 0) => {
   const app = express();
@@ -28,7 +29,7 @@ export const createApp = (trustProxyHops = 0) => {
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
     res.setHeader('Content-Security-Policy', "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'");
-    if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    if (secureCookiesAndTransport()) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     res.setHeader('Cache-Control', 'no-store');
     next();
   });

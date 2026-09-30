@@ -37,6 +37,9 @@ export const parseCorsOrigins = (value: string | undefined) =>
   });
 
 export const parseRuntimeConfig = (environment: RuntimeEnvironment) => {
+  if (!['development', 'test', 'staging', 'production'].includes(environment.NODE_ENV ?? '')) {
+    throw new Error('NODE_ENV must be explicitly set to development, test, staging, or production');
+  }
   validateMailConfiguration(environment);
   const databaseUrl = required(environment, 'DATABASE_URL');
   const directUrl = required(environment, 'DATABASE_URL_UNPOOLED');

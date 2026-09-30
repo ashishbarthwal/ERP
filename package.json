@@ -5,9 +5,9 @@
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node scripts/run-app.cjs dev",
     "build": "tsc -p tsconfig.json && node scripts/copy-views.js",
-    "start": "node dist/server.js",
+    "start": "node scripts/run-app.cjs start",
     "typecheck": "tsc --noEmit",
     "test:auth": "tsx --test tests/*.test.ts",
     "test:ops": "node --test scripts/db/*.test.cjs",

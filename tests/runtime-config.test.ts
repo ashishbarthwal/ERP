@@ -1,14 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseCorsOrigins, parseRuntimeConfig } from '../src/config/runtime-config';
+import { secureCookiesAndTransport } from '../src/config/environment';
 
 const valid = {
+  NODE_ENV: 'development',
   DATABASE_URL: 'postgresql://app:secret@db.example.test/erp',
   DATABASE_URL_UNPOOLED: 'postgresql://app:secret@db.example.test/erp',
   JWT_SECRET: 'a'.repeat(48),
 };
 
 test('runtime config validates the database, secret, CORS origins, and port', () => {
+  const { NODE_ENV: _nodeEnv, ...missingEnvironment } = valid;
+  assert.throws(() => parseRuntimeConfig(missingEnvironment), /NODE_ENV must be explicitly set/);
+  assert.throws(() => parseRuntimeConfig({ ...valid, NODE_ENV: 'preview' }), /NODE_ENV must be explicitly set/);
+  assert.equal(secureCookiesAndTransport('development'), false);
+  assert.equal(secureCookiesAndTransport('staging'), true);
+  assert.equal(secureCookiesAndTransport('production'), true);
   assert.deepEqual(parseRuntimeConfig(valid), {
     port: 4000, trustProxyHops: 0, authLoginAttemptLimit: 10, authSignupAttemptLimit: 5,
     production: false, corsOrigins: new Set(),

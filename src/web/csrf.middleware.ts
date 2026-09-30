@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { secureCookiesAndTransport } from '../config/environment';
 import type { NextFunction, Request, Response } from 'express';
 
 const COOKIE = 'erp_csrf';
@@ -12,7 +13,7 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
   if (!validNonce(nonce)) {
     if (req.method === 'POST') return res.status(403).render('forbidden');
     nonce = randomBytes(32).toString('hex');
-    res.cookie(COOKIE, nonce, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+    res.cookie(COOKIE, nonce, { httpOnly: true, sameSite: 'lax', secure: secureCookiesAndTransport(), path: '/' });
   }
 
   // Bind the form token to both the browser nonce and the current login session.
