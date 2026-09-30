@@ -55,12 +55,16 @@ export const createOrder = async (input: CreateOrderInput) => {
 // Confirming reserves stock for every line item atomically: either all items reserve
 // successfully or the whole confirmation is rolled back (no partial reservation).
 export const confirmOrder = async (id: string) => {
-  const order = await getOrder(id);
-  if (order.status !== 'DRAFT') {
-    throw badRequest(`Only DRAFT orders can be confirmed (current status: ${order.status})`);
-  }
-
   return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Order" WHERE "id" = ${id} FOR UPDATE
+    `;
+    if (!locked.length) throw notFound(`Order ${id} not found`);
+    const order = await tx.order.findUnique({ where: { id }, include: orderInclude });
+    if (!order) throw notFound(`Order ${id} not found`);
+    if (order.status !== 'DRAFT') {
+      throw badRequest(`Only DRAFT orders can be confirmed (current status: ${order.status})`);
+    }
     for (const item of order.items) {
       await reserveStock(tx, item.productId, item.quantity, order.id);
     }
@@ -75,15 +79,15 @@ export const confirmOrder = async (id: string) => {
 // Cancelling a CONFIRMED order releases every reservation it holds; DRAFT orders have
 // no reservations yet so cancellation is a plain status change.
 export const cancelOrder = async (id: string) => {
-  const order = await getOrder(id);
-  if (order.status === 'CANCELLED') {
-    throw badRequest('Order is already cancelled');
-  }
-  if (order.invoice) {
-    throw badRequest('An invoiced order cannot be cancelled');
-  }
-
   return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Order" WHERE "id" = ${id} FOR UPDATE
+    `;
+    if (!locked.length) throw notFound(`Order ${id} not found`);
+    const order = await tx.order.findUnique({ where: { id }, include: orderInclude });
+    if (!order) throw notFound(`Order ${id} not found`);
+    if (order.status === 'CANCELLED') throw badRequest('Order is already cancelled');
+    if (order.invoice) throw badRequest('An invoiced order cannot be cancelled');
     if (order.status === 'CONFIRMED') {
       for (const item of order.items) {
         await releaseStock(tx, item.productId, item.quantity, order.id);

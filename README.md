@@ -88,7 +88,7 @@ implementation stays in the test repository.
 The action analyzes the base/head Git diff, generates Playwright tests from
 reviewed contracts, builds this ERP revision, and runs against a fresh temporary
 PostgreSQL service. Plans, generated tests, review drafts and reports are attached
-to the workflow run as private artifacts. A manual run can execute all 15 contracts.
+to the workflow run as private artifacts. A manual run can execute all 18 reviewed contracts.
 
 See the [automation approach and roadmap](https://github.com/ashishbarthwal/ai-self-healing-test-automation-framework/blob/main/docs/CHANGE_AWARE_AUTOMATION.md).
 New requirements and changed business behavior still need review; AI healing is

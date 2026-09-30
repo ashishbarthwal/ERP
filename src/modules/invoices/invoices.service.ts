@@ -27,23 +27,21 @@ export const getInvoice = async (id: string) => {
 // stock those items were holding (goods are considered shipped/billed at this point
 // in our simplified workflow), and totals the invoice from the line items.
 export const createInvoice = async (input: CreateInvoiceInput) => {
-  const order = await prisma.order.findUnique({
-    where: { id: input.orderId },
-    include: { items: true, invoice: true },
-  });
-  if (!order) {
-    throw notFound(`Order ${input.orderId} not found`);
-  }
-  if (order.status !== 'CONFIRMED') {
-    throw badRequest(`Only CONFIRMED orders can be invoiced (current status: ${order.status})`);
-  }
-  if (order.invoice) {
-    throw badRequest('Order already has an invoice');
-  }
-
-  const totalCents = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
-
   return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Order" WHERE "id" = ${input.orderId} FOR UPDATE
+    `;
+    if (!locked.length) throw notFound(`Order ${input.orderId} not found`);
+    const order = await tx.order.findUnique({
+      where: { id: input.orderId },
+      include: { items: true, invoice: true },
+    });
+    if (!order) throw notFound(`Order ${input.orderId} not found`);
+    if (order.status !== 'CONFIRMED') {
+      throw badRequest(`Only CONFIRMED orders can be invoiced (current status: ${order.status})`);
+    }
+    if (order.invoice) throw badRequest('Order already has an invoice');
+    const totalCents = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
     for (const item of order.items) {
       await consumeReservedStock(tx, item.productId, item.quantity, order.id);
     }
@@ -68,20 +66,24 @@ export const createInvoice = async (input: CreateInvoiceInput) => {
 // Payments accumulate against an invoice; once the sum reaches the total the invoice
 // becomes PAID. Overpayment and payment against a non-PENDING invoice are rejected.
 export const recordPayment = async (invoiceId: string, input: RecordPaymentInput) => {
-  const invoice = await getInvoice(invoiceId);
-  if (invoice.status !== 'PENDING') {
-    throw badRequest(`Only PENDING invoices accept payments (current status: ${invoice.status})`);
-  }
-
-  const alreadyPaid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
-  const newTotal = alreadyPaid + input.amountCents;
-  if (newTotal > invoice.totalCents) {
-    throw badRequest(
-      `Payment of ${input.amountCents} would exceed invoice total (outstanding: ${invoice.totalCents - alreadyPaid})`,
-    );
-  }
-
   return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} FOR UPDATE
+    `;
+    if (!locked.length) throw notFound(`Invoice ${invoiceId} not found`);
+    const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, include: invoiceInclude });
+    if (!invoice) throw notFound(`Invoice ${invoiceId} not found`);
+    if (invoice.status !== 'PENDING') {
+      throw badRequest(`Only PENDING invoices accept payments (current status: ${invoice.status})`);
+    }
+
+    const alreadyPaid = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0);
+    const newTotal = alreadyPaid + input.amountCents;
+    if (newTotal > invoice.totalCents) {
+      throw badRequest(
+        `Payment of ${input.amountCents} would exceed invoice total (outstanding: ${invoice.totalCents - alreadyPaid})`,
+      );
+    }
     await tx.payment.create({
       data: { invoiceId, amountCents: input.amountCents, method: input.method ?? 'manual' },
     });

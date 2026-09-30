@@ -46,20 +46,29 @@ export const createPurchaseOrder = async (input: CreatePurchaseOrderInput) => {
   });
 };
 
-export const submitPurchaseOrder = async (id: string) => {
-  const purchaseOrder = await getPurchaseOrder(id);
+export const submitPurchaseOrder = async (id: string) => prisma.$transaction(async (tx) => {
+  const locked = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
+  `;
+  if (!locked.length) throw notFound(`Purchase order ${id} not found`);
+  const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
+  if (!purchaseOrder) throw notFound(`Purchase order ${id} not found`);
   if (purchaseOrder.status !== 'DRAFT') {
     throw badRequest(`Only DRAFT purchase orders can be submitted (current status: ${purchaseOrder.status})`);
   }
-  return prisma.purchaseOrder.update({
+  return tx.purchaseOrder.update({
     where: { id },
     data: { status: 'ORDERED', orderedAt: new Date() },
     include: purchaseOrderInclude,
   });
-};
+});
 
 export const receivePurchaseOrder = async (id: string) =>
   prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
+    `;
+    if (!locked.length) throw notFound(`Purchase order ${id} not found`);
     const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
     if (!purchaseOrder) {
       throw notFound(`Purchase order ${id} not found`);
@@ -84,17 +93,22 @@ export const receivePurchaseOrder = async (id: string) =>
     });
   });
 
-export const cancelPurchaseOrder = async (id: string) => {
-  const purchaseOrder = await getPurchaseOrder(id);
+export const cancelPurchaseOrder = async (id: string) => prisma.$transaction(async (tx) => {
+  const locked = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
+  `;
+  if (!locked.length) throw notFound(`Purchase order ${id} not found`);
+  const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
+  if (!purchaseOrder) throw notFound(`Purchase order ${id} not found`);
   if (purchaseOrder.status === 'RECEIVED') {
     throw badRequest('A received purchase order cannot be cancelled');
   }
   if (purchaseOrder.status === 'CANCELLED') {
     throw badRequest('Purchase order is already cancelled');
   }
-  return prisma.purchaseOrder.update({
+  return tx.purchaseOrder.update({
     where: { id },
     data: { status: 'CANCELLED' },
     include: purchaseOrderInclude,
   });
-};
+});

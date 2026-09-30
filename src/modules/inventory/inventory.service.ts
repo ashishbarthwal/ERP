@@ -5,6 +5,14 @@ import type { InventoryMovementContext } from './inventory.types';
 
 type Client = PrismaClient | Prisma.TransactionClient;
 
+const lockInventoryItem = async (client: Client, productId: string) => {
+  const locked = await client.$queryRaw<Array<{ productId: string }>>`
+    SELECT "productId" FROM "InventoryItem" WHERE "productId" = ${productId} FOR UPDATE
+  `;
+  if (!locked.length) throw notFound(`No inventory record for product ${productId}`);
+  return getInventoryForProduct(productId, client);
+};
+
 export const getInventoryForProduct = async (productId: string, client: Client = prisma) => {
   const item = await client.inventoryItem.findUnique({ where: { productId } });
   if (!item) {
@@ -45,7 +53,7 @@ export const increaseStock = async (
   quantity: number,
   context: InventoryMovementContext,
 ) => {
-  await getInventoryForProduct(productId, client);
+  await lockInventoryItem(client, productId);
   const updated = await client.inventoryItem.update({
     where: { productId },
     data: { availableQty: { increment: quantity } },
@@ -70,7 +78,7 @@ export const addStock = async (productId: string, quantity: number, note?: strin
 // Reserves `quantity` units for a product. Must run inside the same transaction that
 // creates/confirms the order so reservation is atomic with the order state change.
 export const reserveStock = async (client: Client, productId: string, quantity: number, orderId?: string) => {
-  const item = await getInventoryForProduct(productId, client);
+  const item = await lockInventoryItem(client, productId);
   const unreserved = item.availableQty - item.reservedQty;
   if (unreserved < quantity) {
     throw badRequest(`Insufficient stock for product ${productId}: requested ${quantity}, available ${unreserved}`);
@@ -90,7 +98,7 @@ export const reserveStock = async (client: Client, productId: string, quantity: 
 
 // Releases previously reserved quantity (e.g. when an order is cancelled).
 export const releaseStock = async (client: Client, productId: string, quantity: number, orderId?: string) => {
-  const item = await getInventoryForProduct(productId, client);
+  const item = await lockInventoryItem(client, productId);
   if (item.reservedQty < quantity) {
     throw badRequest(`Cannot release ${quantity} reserved units for product ${productId}`);
   }
@@ -108,7 +116,7 @@ export const releaseStock = async (client: Client, productId: string, quantity: 
 
 // Consumes reserved quantity out of on-hand stock (e.g. when an order ships/is invoiced).
 export const consumeReservedStock = async (client: Client, productId: string, quantity: number, orderId?: string) => {
-  const item = await getInventoryForProduct(productId, client);
+  const item = await lockInventoryItem(client, productId);
   if (item.reservedQty < quantity || item.availableQty < quantity) {
     throw badRequest(`Cannot consume ${quantity} reserved units for product ${productId}`);
   }
