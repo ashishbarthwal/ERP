@@ -70,7 +70,10 @@ the implementation.
 3. **Implemented:** CSRF protection for browser forms, production secure
    cookies, startup validation for database URLs/JWT secret/port/CORS origins,
    and browser security headers.
-4. Throttle login and registration attempts. Decide how sessions are revoked
+4. **Partially implemented:** limit web/API sign-in to 10 attempts per IP and
+   public signup to 5 attempts per IP in a 15-minute window. The store is
+   process-local; use a shared store/edge limit across multiple app instances.
+   Decide how sessions are revoked
    after password changes or account disablement, since clearing a JWT cookie
    does not revoke the token itself.
 5. Add tests for anonymous, wrong role, expired session, forged form request,

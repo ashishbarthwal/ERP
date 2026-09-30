@@ -29,6 +29,7 @@ import {
 } from '../modules/purchasing/purchasing.service';
 import { analyticsCsv, getAnalytics, parseAnalyticsPeriod } from '../modules/analytics/analytics.service';
 import { prisma } from '../lib/prisma';
+import { loginAttemptLimiter, rateLimitMiddleware, signupAttemptLimiter } from '../middleware/ip-rate-limit';
 
 export const webViewsPath = path.join(__dirname, 'views');
 
@@ -132,7 +133,12 @@ webRouter.get('/login', (req, res) => {
   res.render('login', { error: req.query.error, loginDraft: { email: '' }, loginFieldErrors: {} });
 });
 
-webRouter.post('/login', async (req, res) => {
+webRouter.post('/login', rateLimitMiddleware(loginAttemptLimiter, (_req, res, retryAfterSeconds) => {
+  res.status(429).render('login', {
+    error: `Too many sign-in attempts. Try again in ${retryAfterSeconds} seconds.`,
+    loginDraft: { email: '' }, loginFieldErrors: {},
+  });
+}), async (req, res) => {
   try {
     const input = loginSchema.parse(req.body);
     const { token } = await loginUser(input);
@@ -152,7 +158,12 @@ webRouter.get('/signup', (req, res) => {
   res.render('signup', { signupDraft: { name: '', email: '' }, signupFieldErrors: {}, error: '' });
 });
 
-webRouter.post('/signup', async (req, res) => {
+webRouter.post('/signup', rateLimitMiddleware(signupAttemptLimiter, (_req, res, retryAfterSeconds) => {
+  res.status(429).render('signup', {
+    error: `Too many account requests. Try again in ${retryAfterSeconds} seconds.`,
+    signupDraft: { name: '', email: '' }, signupFieldErrors: {},
+  });
+}), async (req, res) => {
   if (req.user) return res.redirect('/dashboard');
   try {
     await signupUser(signupSchema.parse(req.body));

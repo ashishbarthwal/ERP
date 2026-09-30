@@ -9,13 +9,15 @@ const valid = {
 };
 
 test('runtime config validates the database, secret, CORS origins, and port', () => {
-  assert.deepEqual(parseRuntimeConfig(valid), { port: 4000, production: false, corsOrigins: new Set() });
+  assert.deepEqual(parseRuntimeConfig(valid), { port: 4000, trustProxyHops: 0, production: false, corsOrigins: new Set() });
   assert.deepEqual(parseCorsOrigins('https://app.example.test,http://localhost:3000'), [
     'https://app.example.test', 'http://localhost:3000',
   ]);
   assert.throws(() => parseRuntimeConfig({ ...valid, JWT_SECRET: 'short' }), /at least 32/);
   assert.throws(() => parseRuntimeConfig({ ...valid, DATABASE_URL: 'file:./dev.db' }), /PostgreSQL URL/);
   assert.throws(() => parseRuntimeConfig({ ...valid, PORT: '4000/api' }), /integer between/);
+  assert.equal(parseRuntimeConfig({ ...valid, TRUST_PROXY_HOPS: '1' }).trustProxyHops, 1);
+  assert.throws(() => parseRuntimeConfig({ ...valid, TRUST_PROXY_HOPS: 'true' }), /TRUST_PROXY_HOPS/);
   assert.throws(() => parseCorsOrigins('https://app.example.test/path'), /exact HTTP or HTTPS origins/);
   assert.equal(parseRuntimeConfig({ ...valid, NODE_ENV: 'production' }).production, true);
 });

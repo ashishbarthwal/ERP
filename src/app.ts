@@ -16,8 +16,9 @@ import { csrfProtection } from './web/csrf.middleware';
 import { prisma } from './lib/prisma';
 import { parseCorsOrigins } from './config/runtime-config';
 
-export const createApp = () => {
+export const createApp = (trustProxyHops = 0) => {
   const app = express();
+  app.set('trust proxy', trustProxyHops);
   app.disable('x-powered-by');
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

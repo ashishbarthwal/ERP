@@ -3,6 +3,7 @@ import { asyncHandler } from '../../middleware/error.middleware';
 import { requireAuth, requireAdmin } from '../../middleware/auth.middleware';
 import { loginSchema, registerSchema } from './auth.types';
 import { getCurrentUser, loginUser, registerUser } from './auth.service';
+import { loginAttemptLimiter, rateLimitMiddleware } from '../../middleware/ip-rate-limit';
 
 export const authRouter = Router();
 
@@ -18,6 +19,7 @@ authRouter.post(
 
 authRouter.post(
   '/login',
+  rateLimitMiddleware(loginAttemptLimiter),
   asyncHandler(async (req, res) => {
     const input = loginSchema.parse(req.body);
     const result = await loginUser(input);

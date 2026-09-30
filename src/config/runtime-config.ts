@@ -40,8 +40,15 @@ export const parseRuntimeConfig = (environment: RuntimeEnvironment) => {
     throw new Error('PORT must be an integer between 1 and 65535');
   }
 
+  const trustProxyValue = environment.TRUST_PROXY_HOPS?.trim() || '0';
+  const trustProxyHops = Number(trustProxyValue);
+  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 5) {
+    throw new Error('TRUST_PROXY_HOPS must be an integer between 0 and 5');
+  }
+
   return {
     port,
+    trustProxyHops,
     production: environment.NODE_ENV === 'production',
     corsOrigins: new Set(parseCorsOrigins(environment.CORS_ORIGINS)),
   };
