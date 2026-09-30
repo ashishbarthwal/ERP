@@ -10,10 +10,12 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:auth": "tsx --test tests/*.test.ts",
+    "test:ops": "node --test scripts/db/*.test.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:backup-restore:smoke": "node scripts/db/backup-restore-smoke.cjs"
   },
   "license": "ISC",
   "dependencies": {

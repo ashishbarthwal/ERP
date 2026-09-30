@@ -58,3 +58,9 @@ jobs:
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
           head-sha: ${{ github.event.pull_request.head.sha || github.sha }}
           full: ${{ github.event_name == 'workflow_dispatch' && inputs.full || false }}
+      - name: Verify PostgreSQL backup and restore
+        run: npm run test:ops
+        working-directory: ${{ github.workspace }}/erp
+      - name: Run PostgreSQL backup and restore smoke
+        run: npm run db:backup-restore:smoke
+        working-directory: ${{ github.workspace }}/erp
