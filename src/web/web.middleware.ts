@@ -26,10 +26,10 @@ export const attachOptionalUser = async (req: Request, res: Response, next: Next
   if (token) {
     try {
       const payload = verifyToken(token);
-      const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { name: true, role: true } });
-      if (!user || user.role === 'PENDING') clearSessionCookie(res);
+      const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { name: true, role: true, active: true, tokenVersion: true } });
+      if (!user || !user.active || (payload.tokenVersion ?? 0) !== user.tokenVersion || user.role === 'PENDING') clearSessionCookie(res);
       else {
-        req.user = { userId: payload.userId, role: asRole(user.role) };
+        req.user = { userId: payload.userId, role: asRole(user.role), tokenVersion: user.tokenVersion };
         res.locals.user = { name: user.name, role: req.user.role };
       }
     } catch (error) {

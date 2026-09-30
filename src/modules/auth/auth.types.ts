@@ -14,6 +14,7 @@ export const signupSchema = registerSchema.omit({ role: true })
     path: ['confirmPassword'], message: 'Passwords do not match',
   });
 export const approveUserSchema = z.object({ role: z.enum(assignableRoles) });
+export const setUserActiveSchema = z.object({ active: z.enum(['true', 'false']).transform(value => value === 'true') });
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),

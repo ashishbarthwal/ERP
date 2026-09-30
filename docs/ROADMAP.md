@@ -73,9 +73,9 @@ the implementation.
 4. **Partially implemented:** limit web/API sign-in to 10 attempts per IP and
    public signup to 5 attempts per IP in a 15-minute window. The store is
    process-local; use a shared store/edge limit across multiple app instances.
-   Decide how sessions are revoked
-   after password changes or account disablement, since clearing a JWT cookie
-   does not revoke the token itself.
+   Account approval and deactivation/reactivation advance a token version so
+   existing API and browser sessions stop working. Password change/recovery and
+   version invalidation on credential changes remain open.
 5. Add tests for anonymous, wrong role, expired session, forged form request,
    and valid actions for each role.
 

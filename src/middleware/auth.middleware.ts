@@ -20,10 +20,11 @@ export const requireAuth = async (req: Request, _res: Response, next: NextFuncti
   }
   try {
     const token = verifyToken(header.slice('Bearer '.length));
-    const user = await prisma.user.findUnique({ where: { id: token.userId }, select: { role: true } });
+    const user = await prisma.user.findUnique({ where: { id: token.userId }, select: { role: true, active: true, tokenVersion: true } });
     if (!user) return next(unauthorized('User no longer exists'));
+    if (!user.active || (token.tokenVersion ?? 0) !== user.tokenVersion) return next(unauthorized('Session is no longer valid'));
     if (user.role === 'PENDING') return next(forbidden('Your account is awaiting administrator approval'));
-    req.user = { userId: token.userId, role: asRole(user.role) };
+    req.user = { userId: token.userId, role: asRole(user.role), tokenVersion: user.tokenVersion };
     next();
   } catch (error) { next(error); }
 };

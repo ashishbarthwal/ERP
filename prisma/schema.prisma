@@ -19,6 +19,8 @@ model User {
   passwordHash String
   name         String
   role         String   @default("STAFF")
+  active       Boolean  @default(true)
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   auditEvents  AuditEvent[]
 }

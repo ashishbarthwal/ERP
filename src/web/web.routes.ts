@@ -5,8 +5,8 @@ import { ZodError } from 'zod';
 import { AppError, badRequest } from '../lib/errors';
 import { requireWebAuth, requireWebPermission } from './web.middleware';
 import { setSessionCookie, clearSessionCookie } from './web.middleware';
-import { approveUserSchema, loginSchema, registerSchema, signupSchema } from '../modules/auth/auth.types';
-import { approveUser, getCurrentUser, loginUser, registerUser, signupUser } from '../modules/auth/auth.service';
+import { approveUserSchema, loginSchema, registerSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
+import { approveUser, getCurrentUser, loginUser, registerUser, setUserActive, signupUser } from '../modules/auth/auth.service';
 import { createCustomerSchema } from '../modules/customers/customers.types';
 import { createCustomer, getCustomer, listCustomers } from '../modules/customers/customers.service';
 import { createProductSchema } from '../modules/products/products.types';
@@ -183,8 +183,8 @@ webRouter.get('/signup/success', (req, res) => {
 });
 
 webRouter.get('/users', requireWebPermission('users.write'), async (req, res) => {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, createdAt: true }, orderBy: { createdAt: 'asc' } });
-  res.render('users/list', { users, pendingUsers: users.filter(user => user.role === 'PENDING'), error: req.query.error });
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, active: true, createdAt: true }, orderBy: { createdAt: 'asc' } });
+  res.render('users/list', { users, pendingUsers: users.filter(user => user.role === 'PENDING'), currentUserId: req.user!.userId, error: req.query.error });
 });
 
 webRouter.get('/activity', requireWebPermission('users.write'), async (_req, res) => {
@@ -200,6 +200,16 @@ webRouter.post('/users/:id/approve', requireWebPermission('users.write'), async 
   try {
     const { role } = approveUserSchema.parse(req.body);
     await approveUser(req.params.id, role, req.user!.userId);
+    res.redirect('/users');
+  } catch (err) {
+    res.redirect(`/users?error=${encodeURIComponent(errorMessage(err))}`);
+  }
+});
+
+webRouter.post('/users/:id/access', requireWebPermission('users.write'), async (req, res) => {
+  try {
+    const { active } = setUserActiveSchema.parse(req.body);
+    await setUserActive(req.params.id, active, req.user!.userId);
     res.redirect('/users');
   } catch (err) {
     res.redirect(`/users?error=${encodeURIComponent(errorMessage(err))}`);

@@ -4,6 +4,7 @@ import type { Role } from './permissions';
 export interface AuthTokenPayload {
   userId: string;
   role: Role;
+  tokenVersion?: number;
 }
 
 const getSecret = (): string => {
