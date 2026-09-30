@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import { createApp } from './app';
+import { parseRuntimeConfig } from './config/runtime-config';
 
-const port = Number(process.env.PORT ?? 4000);
+const config = parseRuntimeConfig(process.env);
 const app = createApp();
 
-app.listen(port, () => {
-  console.log(`mini-erp API listening on http://localhost:${port}`);
+app.listen(config.port, () => {
+  console.log(`mini-erp API listening on http://localhost:${config.port}`);
 });

@@ -49,7 +49,7 @@ jobs:
           node-version: '24'
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a published framework commit.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@a37b13f461dfce1db6401f5ec9465106372d0e38
+        uses: ashishbarthwal/ai-self-healing-test-automation-framework@d1653ed09397d7a8368fb98c3b8f4622758e6b89
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}

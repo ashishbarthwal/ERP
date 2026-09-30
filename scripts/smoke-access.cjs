@@ -9,6 +9,8 @@ async function main() {
 
   const loginPage = await fetch(`${base}/login`);
   assert.equal(loginPage.status, 200, 'login page');
+  assert.match(loginPage.headers.get('content-security-policy') || '', /default-src 'self'/, 'content security policy');
+  assert.equal(loginPage.headers.get('x-frame-options'), 'DENY', 'frame protection');
   const nonceCookie = loginPage.headers.get('set-cookie')?.split(';')[0];
   const csrfToken = (await loginPage.text()).match(/name="_csrf" value="([a-f0-9]{64})"/)?.[1];
   assert.ok(nonceCookie && csrfToken, 'login form has CSRF token and cookie');
