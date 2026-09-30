@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { prisma } from '../src/lib/prisma';
-import { approveUser, changePassword, loginUser, setUserActive, signupUser } from '../src/modules/auth/auth.service';
-import { approveUserSchema, changePasswordSchema, signupSchema } from '../src/modules/auth/auth.types';
+import { approveUser, changePassword, changeUserRole, loginUser, setUserActive, signupUser } from '../src/modules/auth/auth.service';
+import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, signupSchema } from '../src/modules/auth/auth.types';
 import { requireAuth } from '../src/middleware/auth.middleware';
 import { signToken } from '../src/lib/jwt';
 
@@ -33,7 +33,12 @@ test('public signup stays pending until an administrator assigns a role', async 
     role: 'ADMIN', active: true, tokenVersion: 0,
   });
   (prisma as any).$transaction = async (callback: (tx: any) => unknown) => callback(prisma as any);
-  (prisma as any).$queryRaw = async () => [...records.values()].filter(user => user.role === 'ADMIN' && user.active).map(user => ({ id: user.id }));
+  (prisma as any).$queryRaw = async (parts: TemplateStringsArray, ...values: any[]) => {
+    if (parts.join('').includes('WHERE "id" =')) {
+      return [...records.values()].filter(user => user.id === values[0]).map(user => ({ id: user.id }));
+    }
+    return [...records.values()].filter(user => user.role === 'ADMIN' && user.active).map(user => ({ id: user.id }));
+  };
   audit.create = async ({ data }: any) => {
     auditRecords.push(data);
     return { id: 'audit-event', ...data };
@@ -100,6 +105,14 @@ test('public signup stays pending until an administrator assigns a role', async 
   assert.equal(stillRevokedSessionError.statusCode, 401);
   const activeSession = await loginUser({ email: input.email, password: input.password });
   assert.equal(activeSession.user.role, 'SALES');
+  assert.equal(changeUserRoleSchema.safeParse({ role: 'PENDING' }).success, false);
+  await changeUserRole(id, 'INVENTORY', 'admin-id');
+  const roleChangeRevocation = await new Promise<any>(resolve =>
+    requireAuth({ headers: { authorization: `Bearer ${activeSession.token}` } } as any, {} as any, resolve));
+  assert.equal(roleChangeRevocation.statusCode, 401);
+  assert.equal((await loginUser({ email: input.email, password: input.password })).user.role, 'INVENTORY');
+  await changeUserRole(id, 'SALES', 'admin-id');
+  await assert.rejects(changeUserRole('admin-id', 'STAFF', 'admin-id'), { statusCode: 409 });
   const passwordChange = changePasswordSchema.parse({
     currentPassword: input.password, newPassword: 'New-Password-2026!', confirmPassword: 'New-Password-2026!',
   });
@@ -115,7 +128,7 @@ test('public signup stays pending until an administrator assigns a role', async 
   assert.equal(currentSessionError, undefined);
   await assert.rejects(setUserActive('admin-id', false, 'admin-id'), { statusCode: 409 });
   assert.deepEqual(auditRecords.filter(event => event.entityId === id).map(event => event.action), [
-    'user.signup_requested', 'user.approved', 'user.deactivated', 'user.reactivated', 'user.password_changed',
+    'user.signup_requested', 'user.approved', 'user.deactivated', 'user.reactivated', 'user.role_changed', 'user.role_changed', 'user.password_changed',
   ]);
   await assert.rejects(approveUser(id, 'ADMIN', 'admin-id'), { statusCode: 404 });
   await prisma.$disconnect();

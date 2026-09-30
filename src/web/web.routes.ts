@@ -5,8 +5,8 @@ import { ZodError } from 'zod';
 import { AppError, badRequest } from '../lib/errors';
 import { requireWebAuth, requireWebPermission } from './web.middleware';
 import { setSessionCookie, clearSessionCookie } from './web.middleware';
-import { approveUserSchema, changePasswordSchema, loginSchema, registerSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
-import { approveUser, changePassword, getCurrentUser, loginUser, registerUser, setUserActive, signupUser } from '../modules/auth/auth.service';
+import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, loginSchema, registerSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
+import { approveUser, changePassword, changeUserRole, getCurrentUser, loginUser, registerUser, setUserActive, signupUser } from '../modules/auth/auth.service';
 import { createCustomerSchema } from '../modules/customers/customers.types';
 import { createCustomer, getCustomer, listCustomers } from '../modules/customers/customers.service';
 import { createProductSchema } from '../modules/products/products.types';
@@ -214,6 +214,16 @@ webRouter.post('/users/:id/approve', requireWebPermission('users.write'), async 
   try {
     const { role } = approveUserSchema.parse(req.body);
     await approveUser(req.params.id, role, req.user!.userId);
+    res.redirect('/users');
+  } catch (err) {
+    res.redirect(`/users?error=${encodeURIComponent(errorMessage(err))}`);
+  }
+});
+
+webRouter.post('/users/:id/role', requireWebPermission('users.write'), async (req, res) => {
+  try {
+    const { role } = changeUserRoleSchema.parse(req.body);
+    await changeUserRole(req.params.id, role, req.user!.userId);
     res.redirect('/users');
   } catch (err) {
     res.redirect(`/users?error=${encodeURIComponent(errorMessage(err))}`);

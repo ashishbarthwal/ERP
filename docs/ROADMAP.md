@@ -24,9 +24,9 @@ and money transitions. Payment APIs also support idempotent retries. Local tests
 and a separate reviewed Playwright contract suite cover these behaviors. The
 site is still not ready for live business data: email ownership verification,
 password recovery for locked-out users, shared rate limiting before multi-instance
-deployment, role editing, deployment monitoring, backup/restore drills, broader
-failure recovery, and a signed-in desktop/mobile usability review remain open.
-Password changes verify the current password and revoke existing sessions. A
+deployment, deployment monitoring, backup/restore drills, broader failure recovery,
+and a signed-in desktop/mobile usability review remain open. Admins can change
+approved users' roles; role and password changes revoke existing sessions. A
 passing build and health response do not establish production readiness.
 
 ## Product boundary
@@ -74,11 +74,10 @@ the implementation.
 4. **Partially implemented:** limit web/API sign-in to 10 attempts per IP and
    public signup to 5 attempts per IP in a 15-minute window. The store is
    process-local; use a shared store/edge limit across multiple app instances.
-   Account approval and deactivation/reactivation advance a token version so
-   existing API and browser sessions stop working. Self-service password changes
-   verify the current password, advance the token version, and revoke existing
-   sessions. Email verification and recovery for users who cannot sign in remain
-   open.
+   Account approval, role changes, deactivation/reactivation, and self-service
+   password changes advance a token version so existing API and browser sessions
+   stop working. Password changes verify the current password. Email verification
+   and recovery for users who cannot sign in remain open.
 5. Add tests for anonymous, wrong role, expired session, forged form request,
    and valid actions for each role.
 

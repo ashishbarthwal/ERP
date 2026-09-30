@@ -39,6 +39,38 @@ export const approveUser = async (userId: string, role: Exclude<Role, 'PENDING'>
     summary: `Approved ${user.name} as ${role.toLowerCase()}` });
 });
 
+export const changeUserRole = async (userId: string, role: Exclude<Role, 'PENDING'>, actorId: string) => prisma.$transaction(async (tx) => {
+  // Match the Admin lock order used by account deactivation, then lock the target.
+  await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "User" WHERE "role" = 'ADMIN' AND "active" = true ORDER BY "id" FOR UPDATE
+  `;
+  const targetLock = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
+  `;
+  if (!targetLock.length) throw notFound('Approved workspace user not found');
+  const actor = await tx.user.findUnique({ where: { id: actorId }, select: { role: true, active: true } });
+  if (!actor?.active || actor.role !== 'ADMIN') throw forbidden('An active Admin account is required');
+  if (userId === actorId) throw conflict('You cannot change your own role');
+
+  const target = await tx.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true, active: true } });
+  if (!target || target.role === 'PENDING') throw notFound('Approved workspace user not found');
+  if (target.role === role) return;
+  if (target.active && target.role === 'ADMIN' && role !== 'ADMIN') {
+    const admins = await tx.user.count({ where: { role: 'ADMIN', active: true } });
+    if (admins <= 1) throw conflict('At least one active administrator must remain');
+  }
+
+  const result = await tx.user.updateMany({
+    where: { id: userId, role: target.role, active: target.active },
+    data: { role, tokenVersion: { increment: 1 } },
+  });
+  if (result.count !== 1) throw conflict('Account role changed. Refresh and try again.');
+  await recordAuditEvent(tx, {
+    actorId, action: 'user.role_changed', entityType: 'User', entityId: userId,
+    summary: `Changed ${target.name}'s role from ${target.role.toLowerCase()} to ${role.toLowerCase()}`,
+  });
+});
+
 export const setUserActive = async (userId: string, active: boolean, actorId: string) => prisma.$transaction(async (tx) => {
   if (!active) {
     // Serialize Admin account changes so concurrent deactivation requests cannot
