@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { ZodError } from 'zod';
 import { AppError, badRequest } from '../lib/errors';
@@ -406,7 +407,7 @@ webRouter.get('/invoices', requireWebAuth, async (_req, res) => {
 
 webRouter.get('/invoices/:id', requireWebAuth, async (req, res) => {
   res.render('invoices/show', { invoice: await getInvoice(req.params.id), error: req.query.error,
-    paymentDraft: null, paymentFieldError: '' });
+      paymentDraft: null, paymentFieldError: '', paymentIdempotencyKey: randomUUID() });
 });
 
 webRouter.post('/invoices/:id/payments', requireWebPermission('payments.write'), async (req, res) => {
@@ -414,6 +415,7 @@ webRouter.post('/invoices/:id/payments', requireWebPermission('payments.write'),
     const input = recordPaymentSchema.parse({
       amountCents: parseDollarsToCents(req.body.amountDollars),
       method: req.body.method || undefined,
+        idempotencyKey: req.body.idempotencyKey,
     });
     await recordPayment(req.params.id, input, req.user!.userId);
   } catch (err) {
@@ -425,6 +427,7 @@ webRouter.post('/invoices/:id/payments', requireWebPermission('payments.write'),
       : errorMessage(err);
     return res.status(formErrorStatus(err)).render('invoices/show', {
       invoice, error: message, paymentDraft: textDraft(req.body, ['amountDollars', 'method']),
+      paymentIdempotencyKey: req.body.idempotencyKey || randomUUID(),
       paymentFieldError: overpayment || err instanceof ZodError && err.issues.some((issue) => issue.path[0] === 'amountCents') || err instanceof AppError && err.message.startsWith('Enter a')
         ? message : '',
     });

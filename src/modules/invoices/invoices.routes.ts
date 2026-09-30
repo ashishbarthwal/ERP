@@ -34,7 +34,10 @@ invoicesRouter.post(
   '/:id/payments',
   requirePermission('payments.write'),
   asyncHandler(async (req, res) => {
-    const input = recordPaymentSchema.parse(req.body);
+    const input = recordPaymentSchema.parse({
+      ...req.body,
+      idempotencyKey: req.get('Idempotency-Key') ?? req.body?.idempotencyKey,
+    });
     res.status(200).json(await recordPayment(req.params.id, input, req.user!.userId));
   }),
 );

@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { badRequest, notFound } from '../../lib/errors';
+import { badRequest, conflict, notFound } from '../../lib/errors';
 import { consumeReservedStock } from '../inventory/inventory.service';
 import type { CreateInvoiceInput, RecordPaymentInput } from './invoices.types';
 import { recordAuditEvent } from '../audit/audit.service';
@@ -77,6 +77,16 @@ export const recordPayment = async (invoiceId: string, input: RecordPaymentInput
     if (!locked.length) throw notFound(`Invoice ${invoiceId} not found`);
     const invoice = await tx.invoice.findUnique({ where: { id: invoiceId }, include: invoiceInclude });
     if (!invoice) throw notFound(`Invoice ${invoiceId} not found`);
+    const method = input.method ?? 'manual';
+    const retry = input.idempotencyKey
+      ? invoice.payments.find((payment) => payment.idempotencyKey === input.idempotencyKey)
+      : undefined;
+    if (retry) {
+      if (retry.amountCents !== input.amountCents || retry.method !== method) {
+        throw conflict('Idempotency key was already used with different payment details');
+      }
+      return invoice;
+    }
     if (invoice.status !== 'PENDING') {
       throw badRequest(`Only PENDING invoices accept payments (current status: ${invoice.status})`);
     }
@@ -89,7 +99,7 @@ export const recordPayment = async (invoiceId: string, input: RecordPaymentInput
       );
     }
     await tx.payment.create({
-      data: { invoiceId, amountCents: input.amountCents, method: input.method ?? 'manual' },
+      data: { invoiceId, amountCents: input.amountCents, method, idempotencyKey: input.idempotencyKey ?? null },
     });
 
     const isFullyPaid = newTotal === invoice.totalCents;

@@ -159,10 +159,13 @@ model InvoiceItem {
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
-  amountCents Int
-  method      String   @default("manual")
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id])
+  amountCents    Int
+  method         String   @default("manual")
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+
+  @@unique([invoiceId, idempotencyKey])
 }
