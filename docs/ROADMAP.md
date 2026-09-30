@@ -130,9 +130,10 @@ the core workflow passes, and a backup can be restored to a working instance.
 
 Build in this order, stopping when the portfolio story is complete:
 
-1. **Partially implemented:** append-only audit events cover account, stock,
-   sales, purchasing, invoice, and payment actions in a readable Admin activity
-   log. Expand coverage to edits and reversals as those workflows are added.
+1. **Partially implemented:** append-only audit events cover account requests,
+   approvals/access changes, stock, sales, purchasing, invoice, and payment
+   actions in a readable Admin activity log. Expand coverage to edits and
+   reversals as those workflows are added.
 2. **Stock reality:** partial purchase receipts, stock counts and adjustments,
    reorder points, and a reason for every correction. Add warehouses only when
    the single location flow is reliable.
