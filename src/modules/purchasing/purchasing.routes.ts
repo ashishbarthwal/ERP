@@ -9,7 +9,7 @@ import {
   receivePurchaseOrder,
   submitPurchaseOrder,
 } from './purchasing.service';
-import { createPurchaseOrderSchema } from './purchasing.types';
+import { createPurchaseOrderSchema, idempotencyKeySchema } from './purchasing.types';
 
 export const purchasingRouter = Router();
 purchasingRouter.use(requireAuth);
@@ -42,7 +42,11 @@ purchasingRouter.post(
 purchasingRouter.post(
   '/:id/receive',
   requirePermission('purchases.receive'),
-  asyncHandler(async (req, res) => res.json(await receivePurchaseOrder(req.params.id, req.user!.userId))),
+  asyncHandler(async (req, res) => {
+    const rawKey = req.get('Idempotency-Key') ?? req.body?.idempotencyKey;
+    const key = rawKey === undefined ? undefined : idempotencyKeySchema.parse(rawKey);
+    res.json(await receivePurchaseOrder(req.params.id, req.user!.userId, key));
+  }),
 );
 
 purchasingRouter.post(

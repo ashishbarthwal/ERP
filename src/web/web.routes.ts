@@ -18,7 +18,7 @@ import { createInvoiceSchema, recordPaymentSchema } from '../modules/invoices/in
 import { createInvoice, getInvoice, listInvoices, recordPayment } from '../modules/invoices/invoices.service';
 import { createSupplierSchema } from '../modules/suppliers/suppliers.types';
 import { createSupplier, getSupplier, listSuppliers } from '../modules/suppliers/suppliers.service';
-import { createPurchaseOrderSchema } from '../modules/purchasing/purchasing.types';
+import { createPurchaseOrderSchema, idempotencyKeySchema } from '../modules/purchasing/purchasing.types';
 import {
   cancelPurchaseOrder,
   createPurchaseOrder,
@@ -511,6 +511,7 @@ webRouter.get('/purchase-orders/:id', requireWebAuth, async (req, res) => {
   res.render('purchase-orders/show', {
     purchaseOrder: await getPurchaseOrder(req.params.id),
     error: req.query.error,
+    receiptIdempotencyKey: randomUUID(),
   });
 });
 
@@ -525,7 +526,9 @@ webRouter.post('/purchase-orders/:id/submit', requireWebPermission('purchases.wr
 
 webRouter.post('/purchase-orders/:id/receive', requireWebPermission('purchases.receive'), async (req, res) => {
   try {
-    await receivePurchaseOrder(req.params.id, req.user!.userId);
+    const rawKey = req.body.receiptIdempotencyKey;
+    const key = rawKey === undefined ? undefined : idempotencyKeySchema.parse(rawKey);
+    await receivePurchaseOrder(req.params.id, req.user!.userId, key);
   } catch (err) {
     return res.redirect(`/purchase-orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }

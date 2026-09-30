@@ -105,6 +105,7 @@ model PurchaseOrder {
   createdAt  DateTime            @default(now())
   orderedAt  DateTime?
   receivedAt DateTime?
+  receiptIdempotencyKey String?
 }
 
 model PurchaseOrderItem {

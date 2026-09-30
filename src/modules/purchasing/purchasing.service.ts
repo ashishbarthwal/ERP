@@ -72,7 +72,7 @@ export const submitPurchaseOrder = async (id: string, actorId: string) => prisma
   return submitted;
 });
 
-export const receivePurchaseOrder = async (id: string, actorId: string) =>
+export const receivePurchaseOrder = async (id: string, actorId: string, idempotencyKey?: string) =>
   prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
@@ -81,6 +81,9 @@ export const receivePurchaseOrder = async (id: string, actorId: string) =>
     const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
     if (!purchaseOrder) {
       throw notFound(`Purchase order ${id} not found`);
+    }
+    if (purchaseOrder.status === 'RECEIVED' && idempotencyKey && purchaseOrder.receiptIdempotencyKey === idempotencyKey) {
+      return purchaseOrder;
     }
     if (purchaseOrder.status !== 'ORDERED') {
       throw badRequest(`Only ORDERED purchase orders can be received (current status: ${purchaseOrder.status})`);
@@ -97,7 +100,7 @@ export const receivePurchaseOrder = async (id: string, actorId: string) =>
 
     const received = await tx.purchaseOrder.update({
       where: { id },
-      data: { status: 'RECEIVED', receivedAt: new Date() },
+      data: { status: 'RECEIVED', receivedAt: new Date(), receiptIdempotencyKey: idempotencyKey ?? null },
       include: purchaseOrderInclude,
     });
     await recordAuditEvent(tx, { actorId, action: 'purchase_order.received', entityType: 'PurchaseOrder', entityId: id,

@@ -91,10 +91,11 @@ rejected. A disabled account cannot keep acting with an old token.
 2. **Implemented for core transitions:** confirmation, cancellation, invoicing,
    purchase receipt, stock changes, and payments recheck state under PostgreSQL
    row locks. Keep expanding race and rollback coverage.
-3. **Partially implemented:** API payment recording accepts `Idempotency-Key`;
-   identical retries return the existing invoice and a key reused with different
-   payment details is rejected. Add equivalent protection for purchase receipt
-   and other externally repeatable transitions.
+3. **Partially implemented:** API payment recording and purchase receipt accept
+   `Idempotency-Key`; identical retries return the existing invoice/receipt,
+   payment keys reused with different details are rejected, and a different key
+   cannot repeat a completed receipt. Add equivalent protection for other
+   externally repeatable transitions.
 4. Add reconciliation queries or tests: movement totals match current stock;
    reserved quantity never exceeds on hand; invoice payments never exceed total;
    each order follows an allowed state transition.

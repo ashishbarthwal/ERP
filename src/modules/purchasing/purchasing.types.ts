@@ -13,5 +13,7 @@ export const createPurchaseOrderSchema = z.object({
     .min(1),
 });
 
+export const idempotencyKeySchema = z.string().trim().min(1).max(128);
+
 export type CreatePurchaseOrderInput = z.infer<typeof createPurchaseOrderSchema>;
 
