@@ -15,11 +15,13 @@ import { attachOptionalUser } from './web/web.middleware';
 import { csrfProtection } from './web/csrf.middleware';
 import { prisma } from './lib/prisma';
 import { parseCorsOrigins } from './config/runtime-config';
+import { requestLoggingMiddleware } from './middleware/request-logging.middleware';
 
 export const createApp = (trustProxyHops = 0) => {
   const app = express();
   app.set('trust proxy', trustProxyHops);
   app.disable('x-powered-by');
+  app.use(requestLoggingMiddleware);
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');

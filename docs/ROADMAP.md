@@ -118,9 +118,10 @@ purchase order, consume stock twice, or leave a partially applied workflow.
    PostgreSQL schema and migrations in staging before changing the production
    database; switching providers is more than changing one schema line.
 3. **Partially implemented:** a readiness endpoint checks database access
-   separately from liveness, and committed business events appear in the Admin
-   activity log. Add structured request logs, request IDs, and error alerts.
-   Exclude passwords, tokens, and sensitive business payloads from logs.
+   separately from liveness, committed business events appear in the Admin
+   activity log, and HTTP requests emit structured logs with generated request
+   IDs. Add log shipping and error alerts; current logs exclude request bodies,
+   query strings, cookies, and authorization headers.
 4. Automate database backups, document retention, and perform a restore drill.
    Write a one page runbook for failed deployment, failed migration, and recovery.
 5. Track dependency updates and security advisories; review upgrades through

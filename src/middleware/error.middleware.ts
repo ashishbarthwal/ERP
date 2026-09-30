@@ -9,13 +9,13 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, next:
   const webRequest = !req.path.startsWith('/api/') && req.path !== '/api' && !['/health', '/ready'].includes(req.path);
   if (webRequest) {
     const status = err instanceof AppError ? err.statusCode : err instanceof ZodError ? 400 : 500;
-    if (status >= 500) console.error(err);
     const denied = status === 401 || status === 403;
     return res.status(status).render('system-error', {
       pageTitle: denied ? 'Access restricted' : status === 404 ? 'Page not found' : 'Request error',
       errorCode: String(status),
       errorTitle: denied ? 'Access restricted' : status === 404 ? 'Page not found' : status >= 500 ? 'Something went wrong' : 'Unable to complete request',
       errorDescription: denied ? 'Your account cannot open this page or complete this action.' : status === 404 ? 'This page may have moved, or the address may be incorrect.' : status >= 500 ? 'Please try again. If the problem continues, contact your workspace administrator.' : 'Review your request and try again.',
+      requestId: status >= 500 ? res.locals.requestId : undefined,
       error: '',
     });
   }
@@ -34,8 +34,7 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, next:
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  console.error(err);
-  return res.status(500).json({ error: 'Internal server error' });
+  return res.status(500).json({ error: 'Internal server error', requestId: res.locals.requestId });
 };
 
 // Wraps an async route handler so thrown/rejected errors reach errorMiddleware.
