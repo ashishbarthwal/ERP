@@ -1,6 +1,6 @@
 # Mini ERP roadmap
 
-Status: planning baseline, 27 September 2026. This is a personal project with one
+Status: updated 30 September 2026. This is a personal project with one
 fictional small distributor as its reference business. It aims to show dependable
 business workflows and professional engineering without claiming SAP parity or
 becoming a general purpose SaaS platform.
@@ -14,13 +14,19 @@ reserved stock. Price and cost snapshots preserve historical document amounts.
 There is a movement history, REST API, server rendered interface, Prisma
 migrations, and a separate change aware Playwright workflow.
 
-The current assessment is **7.5/10 as a personal project** and **3/10 as a
-business deployment**. These are judgment calls, not certification scores. The
-personal score reflects the connected workflows and clear project scope. The
-deployment score reflects missing authorization rules, CSRF protection, audit
-records, local tests, recovery procedures, and concurrency guarantees around
-money and stock. A passing build and health response do not establish these
-controls. The UI score is provisional until signed in desktop and mobile testing.
+The earlier assessment was **7.5/10 as a personal project** and **3/10 as a
+business deployment**. Treat those as a historical baseline, not a current score.
+Since then, the app added role-enforced web/API permissions, pending public
+signup with Admin approval, CSRF protection, startup configuration validation,
+browser security headers, append-only application audit events, database checks
+for core quantities and amounts, and PostgreSQL row locks across the main stock
+and money transitions. Payment APIs also support idempotent retries. Local tests
+and a separate reviewed Playwright contract suite cover these behaviors. The
+site is still not ready for live business data: login/signup throttling, email
+ownership verification, password recovery and session revocation, deployment
+monitoring, backup/restore drills, broader failure recovery, and signed-in
+desktop/mobile usability review remain open. A passing build and health response
+do not establish production readiness.
 
 ## Product boundary
 
@@ -57,16 +63,13 @@ the implementation.
 
 ### 1. Secure access and actions (1 to 2 weeks)
 
-1. Enforce the permission matrix on the server for both web and API routes.
-   Today most routes require authentication only; `requireAdmin` exists but is
-   unused. Hide unavailable actions in the UI as a usability measure, not as the
-   authorization control.
-2. Replace public registration for deployed environments with an admin created
-   or invitation flow. Keep a deliberate local demo setup path.
-3. Add CSRF protection to cookie authenticated POST actions, including logout.
-   Set secure cookies under HTTPS; validate session secrets and deployment
-   configuration at startup; add suitable security headers and a deliberate
-   CORS allowlist or remove CORS if no cross origin client needs it.
+1. **Implemented:** enforce role permissions on web and API routes. Continue
+   exercising denied as well as allowed actions in the reviewed contracts.
+2. **Implemented:** public signup creates a pending account; an Admin must
+   approve it and assign a role before access is granted.
+3. **Implemented:** CSRF protection for browser forms, production secure
+   cookies, startup validation for database URLs/JWT secret/port/CORS origins,
+   and browser security headers.
 4. Throttle login and registration attempts. Decide how sessions are revoked
    after password changes or account disablement, since clearing a JWT cookie
    does not revoke the token itself.
@@ -79,14 +82,16 @@ rejected. A disabled account cannot keep acting with an old token.
 
 ### 2. Make transactions safe under retries and concurrency (1 to 2 weeks)
 
-1. Move invoice balance checks into the same transaction as payment creation.
-   Protect the invariant at the database boundary so two concurrent payments
-   cannot both pass a stale balance check.
-2. Apply conditional state changes or equivalent concurrency control when
-   confirming, cancelling, invoicing, and receiving orders. Recheck state inside
-   the transaction before stock movements or payment writes.
-3. Make externally repeatable actions idempotent, especially payment recording
-   and purchase receipt. A retry or double click must not create a second event.
+1. **Implemented:** payment balance checks and writes share a transaction;
+   invoice row locks serialize concurrent payments, and database constraints
+   reject invalid core quantities and amounts.
+2. **Implemented for core transitions:** confirmation, cancellation, invoicing,
+   purchase receipt, stock changes, and payments recheck state under PostgreSQL
+   row locks. Keep expanding race and rollback coverage.
+3. **Partially implemented:** API payment recording accepts `Idempotency-Key`;
+   identical retries return the existing invoice and a key reused with different
+   payment details is rejected. Add equivalent protection for purchase receipt
+   and other externally repeatable transitions.
 4. Add reconciliation queries or tests: movement totals match current stock;
    reserved quantity never exceeds on hand; invoice payments never exceed total;
    each order follows an allowed state transition.
@@ -98,15 +103,17 @@ purchase order, consume stock twice, or leave a partially applied workflow.
 
 ### 3. Make the app deployable and recoverable (1 to 2 weeks)
 
-1. Add a local test command and make typecheck, build, focused service tests,
-   and the companion Playwright contracts visible CI gates.
+1. **Implemented:** local config/signup tests, typecheck/build, the companion
+   reviewed Playwright contracts, and isolated PostgreSQL CI. Keep these gates
+   passing as workflows change.
 2. Prepare a staging environment with HTTPS, environment specific secrets,
    an automated deployment checklist, and migration step. For the current
    Prisma 5 setup, use `prisma migrate deploy` outside development. Test the
    PostgreSQL schema and migrations in staging before changing the production
    database; switching providers is more than changing one schema line.
-3. Add structured request and business event logs, request IDs, error alerts,
-   and a readiness endpoint that checks database access separately from liveness.
+3. **Partially implemented:** a readiness endpoint checks database access
+   separately from liveness, and committed business events appear in the Admin
+   activity log. Add structured request logs, request IDs, and error alerts.
    Exclude passwords, tokens, and sensitive business payloads from logs.
 4. Automate database backups, document retention, and perform a restore drill.
    Write a one page runbook for failed deployment, failed migration, and recovery.
@@ -120,9 +127,9 @@ the core workflow passes, and a backup can be restored to a working instance.
 
 Build in this order, stopping when the portfolio story is complete:
 
-1. **Document trail and audit:** who created, approved, changed, received, and
-   reversed each transaction; immutable business event records and a readable
-   timeline. Keep application logs separate from the business audit trail.
+1. **Partially implemented:** append-only audit events cover account, stock,
+   sales, purchasing, invoice, and payment actions in a readable Admin activity
+   log. Expand coverage to edits and reversals as those workflows are added.
 2. **Stock reality:** partial purchase receipts, stock counts and adjustments,
    reorder points, and a reason for every correction. Add warehouses only when
    the single location flow is reliable.
