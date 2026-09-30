@@ -57,6 +57,9 @@ step. Do not run `db:seed` during deployment.
 
 Deploy the SHA-tagged image with one instance first. Configure the platform's
 readiness check to use `/ready`; `/health` only proves the process can respond.
+Give the container at least 15 seconds to handle `SIGTERM`; the app stops
+accepting requests, allows up to 10 seconds for active connections, and then
+disconnects Prisma before the platform terminates it.
 After the instance is ready:
 
 ```powershell
