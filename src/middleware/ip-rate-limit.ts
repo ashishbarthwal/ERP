@@ -6,11 +6,15 @@ export class IpRateLimiter {
   private readonly buckets = new Map<string, Bucket>();
 
   constructor(
-    readonly limit: number,
+    private currentLimit: number,
     private readonly windowMs: number,
     private readonly now: () => number = Date.now,
     private readonly maxKeys = 10_000,
   ) {}
+
+  get limit() { return this.currentLimit; }
+
+  setLimit(limit: number) { this.currentLimit = limit; }
 
   consume(ip: string) {
     const now = this.now();
@@ -59,3 +63,8 @@ export const rateLimitMiddleware = (
 
 export const loginAttemptLimiter = new IpRateLimiter(10, 15 * 60 * 1000);
 export const signupAttemptLimiter = new IpRateLimiter(5, 15 * 60 * 1000);
+
+export const configureAuthAttemptLimits = (loginLimit: number, signupLimit: number) => {
+  loginAttemptLimiter.setLimit(loginLimit);
+  signupAttemptLimiter.setLimit(signupLimit);
+};

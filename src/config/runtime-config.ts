@@ -6,6 +6,15 @@ const required = (environment: RuntimeEnvironment, key: string) => {
   return value;
 };
 
+const parseAttemptLimit = (environment: RuntimeEnvironment, key: string, defaultValue: number) => {
+  const value = environment[key]?.trim() || String(defaultValue);
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+    throw new Error(`${key} must be an integer between 1 and 1000`);
+  }
+  return limit;
+};
+
 const validatePostgresUrl = (value: string, key: string) => {
   let url: URL;
   try { url = new URL(value); }
@@ -45,10 +54,14 @@ export const parseRuntimeConfig = (environment: RuntimeEnvironment) => {
   if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 5) {
     throw new Error('TRUST_PROXY_HOPS must be an integer between 0 and 5');
   }
+  const authLoginAttemptLimit = parseAttemptLimit(environment, 'AUTH_LOGIN_ATTEMPT_LIMIT', 10);
+  const authSignupAttemptLimit = parseAttemptLimit(environment, 'AUTH_SIGNUP_ATTEMPT_LIMIT', 5);
 
   return {
     port,
     trustProxyHops,
+    authLoginAttemptLimit,
+    authSignupAttemptLimit,
     production: environment.NODE_ENV === 'production',
     corsOrigins: new Set(parseCorsOrigins(environment.CORS_ORIGINS)),
   };
