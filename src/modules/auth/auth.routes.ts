@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
 import { requireAuth, requireAdmin } from '../../middleware/auth.middleware';
-import { loginSchema, registerSchema } from './auth.types';
-import { getCurrentUser, loginUser, registerUser } from './auth.service';
+import { changePasswordSchema, loginSchema, registerSchema } from './auth.types';
+import { changePassword, getCurrentUser, loginUser, registerUser } from './auth.service';
 import { loginAttemptLimiter, rateLimitMiddleware } from '../../middleware/ip-rate-limit';
 
 export const authRouter = Router();
+
+authRouter.post(
+  '/password',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await changePassword(req.user!.userId, changePasswordSchema.parse(req.body));
+    res.status(200).json({ reauthenticate: true });
+  }),
+);
 
 authRouter.post(
   '/register',

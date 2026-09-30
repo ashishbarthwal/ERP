@@ -14,6 +14,7 @@ The application includes:
 - cookie-based web authentication and JWT API authentication
 - server-enforced Admin, Sales, Purchasing, Inventory, and read-only Staff roles; public account requests wait for Admin approval; Admins can deactivate accounts and revoke active sessions
 - per-IP sign-in and signup attempt limits, with configurable proxy-hop trust for deployments behind a known proxy chain
+- self-service password changes verify the current password and revoke existing sessions
 - customers, suppliers, products, and inventory
 - sales orders, purchase orders, invoices, and payments
 - atomic stock reservation, receipt, release, and consumption workflows

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { prisma } from '../src/lib/prisma';
-import { approveUser, loginUser, setUserActive, signupUser } from '../src/modules/auth/auth.service';
-import { approveUserSchema, signupSchema } from '../src/modules/auth/auth.types';
+import { approveUser, changePassword, loginUser, setUserActive, signupUser } from '../src/modules/auth/auth.service';
+import { approveUserSchema, changePasswordSchema, signupSchema } from '../src/modules/auth/auth.types';
 import { requireAuth } from '../src/middleware/auth.middleware';
 import { signToken } from '../src/lib/jwt';
 
@@ -51,7 +51,7 @@ test('public signup stays pending until an administrator assigns a role', async 
     return user;
   };
   delegate.updateMany = async ({ where, data }: any) => {
-    const user = [...records.values()].find(user => user.id === where.id && user.role === where.role);
+    const user = [...records.values()].find(user => Object.entries(where).every(([key, value]) => user[key] === value));
     if (!user) return { count: 0 };
     const { tokenVersion, ...fields } = data;
     Object.assign(user, fields);
@@ -98,10 +98,24 @@ test('public signup stays pending until an administrator assigns a role', async 
   const stillRevokedSessionError = await new Promise<any>(resolve =>
     requireAuth({ headers: { authorization: `Bearer ${session.token}` } } as any, {} as any, resolve));
   assert.equal(stillRevokedSessionError.statusCode, 401);
-  assert.equal((await loginUser({ email: input.email, password: input.password })).user.role, 'SALES');
+  const activeSession = await loginUser({ email: input.email, password: input.password });
+  assert.equal(activeSession.user.role, 'SALES');
+  const passwordChange = changePasswordSchema.parse({
+    currentPassword: input.password, newPassword: 'New-Password-2026!', confirmPassword: 'New-Password-2026!',
+  });
+  assert.equal(changePasswordSchema.safeParse({ ...passwordChange, confirmPassword: 'different' }).success, false);
+  await changePassword(id, passwordChange);
+  const credentialChangeRevocation = await new Promise<any>(resolve =>
+    requireAuth({ headers: { authorization: `Bearer ${activeSession.token}` } } as any, {} as any, resolve));
+  assert.equal(credentialChangeRevocation.statusCode, 401);
+  await assert.rejects(loginUser({ email: input.email, password: input.password }), { statusCode: 401 });
+  const newCredentialSession = await loginUser({ email: input.email, password: passwordChange.newPassword });
+  const currentSessionError = await new Promise<any>(resolve =>
+    requireAuth({ headers: { authorization: `Bearer ${newCredentialSession.token}` } } as any, {} as any, resolve));
+  assert.equal(currentSessionError, undefined);
   await assert.rejects(setUserActive('admin-id', false, 'admin-id'), { statusCode: 409 });
   assert.deepEqual(auditRecords.filter(event => event.entityId === id).map(event => event.action), [
-    'user.signup_requested', 'user.approved', 'user.deactivated', 'user.reactivated',
+    'user.signup_requested', 'user.approved', 'user.deactivated', 'user.reactivated', 'user.password_changed',
   ]);
   await assert.rejects(approveUser(id, 'ADMIN', 'admin-id'), { statusCode: 404 });
   await prisma.$disconnect();

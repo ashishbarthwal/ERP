@@ -42,6 +42,7 @@ export const attachOptionalUser = async (req: Request, res: Response, next: Next
   const section = req.path.split('/')[1];
   const titles: Record<string, string> = {
     dashboard: 'Overview',
+    account: 'Account security',
     analytics: 'Analytics',
     customers: 'Customers',
     products: 'Products',

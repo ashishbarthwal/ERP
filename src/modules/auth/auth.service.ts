@@ -2,8 +2,8 @@ import { prisma } from '../../lib/prisma';
 import { hashPassword, verifyPassword } from '../../lib/password';
 import { signToken } from '../../lib/jwt';
 import { asRole, type Role } from '../../lib/permissions';
-import { conflict, forbidden, notFound, unauthorized } from '../../lib/errors';
-import type { LoginInput, RegisterInput, SignupInput } from './auth.types';
+import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../lib/errors';
+import type { ChangePasswordInput, LoginInput, RegisterInput, SignupInput } from './auth.types';
 import { recordAuditEvent } from '../audit/audit.service';
 
 const createUser = async (input: Pick<RegisterInput, 'email' | 'name' | 'password'>, role: Role, actorId: string | null) => {
@@ -72,6 +72,32 @@ export const setUserActive = async (userId: string, active: boolean, actorId: st
     summary: `${active ? 'Reactivated' : 'Deactivated'} account for ${target.name}`,
   });
 });
+
+export const changePassword = async (userId: string, input: ChangePasswordInput) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId }, select: { id: true, passwordHash: true, tokenVersion: true, active: true },
+  });
+  if (!user?.active) throw unauthorized();
+  if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+    throw badRequest('Current password is incorrect');
+  }
+  if (await verifyPassword(input.newPassword, user.passwordHash)) {
+    throw badRequest('Choose a password different from your current password');
+  }
+  const passwordHash = await hashPassword(input.newPassword);
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.user.updateMany({
+      where: { id: user.id, passwordHash: user.passwordHash, tokenVersion: user.tokenVersion, active: true },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+    });
+    if (result.count !== 1) throw conflict('Account credentials changed. Sign in and try again.');
+    await recordAuditEvent(tx, {
+      actorId: userId, action: 'user.password_changed', entityType: 'User', entityId: userId,
+      summary: 'Changed account password',
+    });
+  });
+};
 
 export const loginUser = async (input: LoginInput) => {
   const user = await prisma.user.findUnique({ where: { email: input.email } });

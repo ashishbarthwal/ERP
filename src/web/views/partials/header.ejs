@@ -27,6 +27,7 @@
     .button, button { display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 7px; background: var(--teal); color: white; padding: 11px 16px; font: 700 13px Arial, sans-serif; cursor: pointer; } .button:hover, button:hover { background: #075781; text-decoration: none; } .button.secondary { background: #deeff9; color: #0a5680; } .button.ghost { background: transparent; color: var(--teal); border: 1px solid #a9cddd; }
     a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #e7a93c; outline-offset: 2px; }
     .flash { border-left: 4px solid var(--red); background: #fff0ed; color: #8e3934; padding: 13px 16px; margin-bottom: 24px; font: 600 13px Arial, sans-serif; }
+    .flash-success { border-left-color: #17836f; background: #e7f6f0; color: #17645f; }
     .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); } .stats-six { grid-template-columns: repeat(6, minmax(0, 1fr)); } .stat, .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; box-shadow: none; } .stat { min-width: 0; padding: 14px 18px; border: 0; border-right: 1px solid var(--line); border-radius: 0; } .stat:last-child { border-right: 0; } a.stat:hover { background: #f4f9fc; text-decoration: none; } .stat-label { color: var(--muted); font: 700 10px Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; } .stat-value { display: block; color: var(--navy); font: 700 26px 'Segoe UI', Arial, sans-serif; margin-top: 3px; white-space: nowrap; } .stat small { display:block; margin-top:2px; color:var(--muted); font-size:11px; }
     .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .75fr); gap: 18px; align-items: start; } .panel { padding: 18px 20px; min-width: 0; } .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 12px; } .panel-heading span { color: var(--muted); font: 12px Arial, sans-serif; }
     table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; box-shadow: none; } th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; } th { color: var(--muted); background: #f4f7fa; font: 700 10px Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; } tr:last-child td { border-bottom: 0; } td { font-size: 13px; } .table-wrap { overflow-x: auto; }
@@ -459,6 +460,7 @@
         <nav aria-label="Main navigation">
           <a href="/dashboard" <% if (pageTitle === 'Overview') { %>aria-current="page"<% } %>>Overview</a>
           <a href="/analytics" <% if (pageTitle === 'Analytics') { %>aria-current="page"<% } %>>Analytics</a>
+          <a href="/account/security" <% if (pageTitle === 'Account security') { %>aria-current="page"<% } %>>Account security</a>
         </nav>
         <p class="nav-label" style="margin-top:24px">Sales</p>
         <nav aria-label="Sales navigation">
@@ -483,4 +485,7 @@
       <main>
     <% if (locals.error) { %>
       <p class="flash" role="alert"><%= error %></p>
+    <% } %>
+    <% if (locals.message) { %>
+      <p class="flash flash-success" role="status"><%= message %></p>
     <% } %>

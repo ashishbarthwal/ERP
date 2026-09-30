@@ -5,8 +5,8 @@ import { ZodError } from 'zod';
 import { AppError, badRequest } from '../lib/errors';
 import { requireWebAuth, requireWebPermission } from './web.middleware';
 import { setSessionCookie, clearSessionCookie } from './web.middleware';
-import { approveUserSchema, loginSchema, registerSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
-import { approveUser, getCurrentUser, loginUser, registerUser, setUserActive, signupUser } from '../modules/auth/auth.service';
+import { approveUserSchema, changePasswordSchema, loginSchema, registerSchema, setUserActiveSchema, signupSchema } from '../modules/auth/auth.types';
+import { approveUser, changePassword, getCurrentUser, loginUser, registerUser, setUserActive, signupUser } from '../modules/auth/auth.service';
 import { createCustomerSchema } from '../modules/customers/customers.types';
 import { createCustomer, getCustomer, listCustomers } from '../modules/customers/customers.service';
 import { createProductSchema } from '../modules/products/products.types';
@@ -130,7 +130,7 @@ const parseDollarsToCents = (value: unknown): number => {
 webRouter.get('/', (req, res) => res.redirect(req.user ? '/dashboard' : '/login'));
 
 webRouter.get('/login', (req, res) => {
-  res.render('login', { error: req.query.error, loginDraft: { email: '' }, loginFieldErrors: {} });
+  res.render('login', { error: req.query.error, message: req.query.message, loginDraft: { email: '' }, loginFieldErrors: {} });
 });
 
 webRouter.post('/login', rateLimitMiddleware(loginAttemptLimiter, (_req, res, retryAfterSeconds) => {
@@ -180,6 +180,20 @@ webRouter.post('/signup', rateLimitMiddleware(signupAttemptLimiter, (_req, res, 
 webRouter.get('/signup/success', (req, res) => {
   if (req.user) return res.redirect('/dashboard');
   res.render('signup-success');
+});
+
+webRouter.get('/account/security', requireWebAuth, (_req, res) => {
+  res.render('account/security');
+});
+
+webRouter.post('/account/security/password', requireWebAuth, async (req, res) => {
+  try {
+    await changePassword(req.user!.userId, changePasswordSchema.parse(req.body));
+  } catch (err) {
+    return res.status(formErrorStatus(err)).render('account/security', { error: errorMessage(err) });
+  }
+  clearSessionCookie(res);
+  res.redirect('/login?message=Password%20updated.%20Sign%20in%20with%20your%20new%20password.');
 });
 
 webRouter.get('/users', requireWebPermission('users.write'), async (req, res) => {
