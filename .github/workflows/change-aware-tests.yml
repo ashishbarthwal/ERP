@@ -64,6 +64,8 @@ jobs:
       - name: Reconcile ERP stock and invoice records
         run: npm run db:reconcile
         working-directory: ${{ github.workspace }}/erp
+        env:
+          DATABASE_URL: ${{ env.ERP_TEST_DATABASE_URL }}
       - name: Run PostgreSQL backup and restore smoke
         run: npm run db:backup-restore:smoke
         working-directory: ${{ github.workspace }}/erp
