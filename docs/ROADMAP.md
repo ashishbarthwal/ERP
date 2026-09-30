@@ -102,9 +102,12 @@ rejected. A disabled account cannot keep acting with an old token.
    payment keys reused with different details are rejected, and a different key
    cannot repeat a completed receipt. Add equivalent protection for other
    externally repeatable transitions.
-4. Add reconciliation queries or tests: movement totals match current stock;
-   reserved quantity never exceeds on hand; invoice payments never exceed total;
-   each order follows an allowed state transition.
+4. **Partially implemented:** `npm run db:reconcile` runs read-only checks for
+   product inventory coverage, order reservations, invoice snapshots and totals,
+   payments, and purchase/sale movement references. CI runs it against its
+   disposable database. Add a documented opening-balance model before treating
+   the movement ledger as a complete reconciliation of on-hand quantity, and
+   continue expanding checks for every allowed order transition.
 5. Test failed transactions and simultaneous requests against a disposable
    database. Preserve the existing historical price and cost snapshots.
 

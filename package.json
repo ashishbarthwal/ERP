@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test:auth": "tsx --test tests/*.test.ts",
     "test:ops": "node --test scripts/db/*.test.cjs",
+    "db:reconcile": "node scripts/db/reconcile.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

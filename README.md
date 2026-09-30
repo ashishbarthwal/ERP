@@ -25,6 +25,9 @@ The application includes:
 See the [product and production-readiness roadmap](docs/ROADMAP.md) for the
 prioritized milestones, acceptance criteria, and project scope.
 See [access control](docs/ACCESS_CONTROL.md) for the permission matrix and remaining security work.
+`npm run db:reconcile` performs read-only cross-record checks for inventory
+reservations, order/invoice snapshots, payment totals, and receipt/consumption
+movements. It reports mismatching counts without printing record identifiers.
 See the [database recovery runbook](docs/OPERATIONS_RECOVERY.md) for the
 staging restore and cutover procedure; it still needs a staging rehearsal.
 
