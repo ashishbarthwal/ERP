@@ -16,6 +16,8 @@ migrations, and a separate change aware Playwright workflow.
 
 The earlier assessment was **7.5/10 as a personal project** and **3/10 as a
 business deployment**. Treat those as a historical baseline, not a current score.
+The current deployment-readiness estimate and the quickest evidence-led route
+to improve it are tracked in the [production readiness acceleration plan](PRODUCTION_READINESS_ACCELERATION_PLAN.md).
 Since then, the app added role-enforced web/API permissions, pending public
 signup with verified email and Admin approval, one-use email recovery links,
 CSRF protection, startup configuration validation, browser security headers,
