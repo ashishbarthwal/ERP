@@ -9,17 +9,17 @@ import { approveUserSchema, changePasswordSchema, changeUserRoleSchema, emailReq
 import { approveUser, changePassword, changeUserRole, getCurrentUser, loginUser, registerUser, requestPasswordReset, resetPassword, resendEmailVerification, setUserActive, signupUser, verifyAccountEmail } from '../modules/auth/auth.service';
 import { createCustomerSchema } from '../modules/customers/customers.types';
 import { createCustomer, getCustomer, listCustomers } from '../modules/customers/customers.service';
-import { createProductSchema } from '../modules/products/products.types';
-import { createProduct, getProduct, listProducts } from '../modules/products/products.service';
-import { addStock } from '../modules/inventory/inventory.service';
-import { stockIdempotencyKeySchema } from '../modules/inventory/inventory.types';
+import { createProductSchema, updateReorderPointSchema } from '../modules/products/products.types';
+import { createProduct, getProduct, listProducts, updateProductReorderPoint } from '../modules/products/products.service';
+import { adjustStock } from '../modules/inventory/inventory.service';
+import { adjustStockSchema, stockIdempotencyKeySchema } from '../modules/inventory/inventory.types';
 import { createOrderSchema } from '../modules/orders/orders.types';
 import { cancelOrder, confirmOrder, createOrder, getOrder, listOrders } from '../modules/orders/orders.service';
 import { createInvoiceSchema, recordPaymentSchema } from '../modules/invoices/invoices.types';
 import { createInvoice, getInvoice, listInvoices, recordPayment } from '../modules/invoices/invoices.service';
 import { createSupplierSchema } from '../modules/suppliers/suppliers.types';
 import { createSupplier, getSupplier, listSuppliers } from '../modules/suppliers/suppliers.service';
-import { createPurchaseOrderSchema, idempotencyKeySchema } from '../modules/purchasing/purchasing.types';
+import { createPurchaseOrderSchema, idempotencyKeySchema, receivePurchaseOrderSchema } from '../modules/purchasing/purchasing.types';
 import {
   cancelPurchaseOrder,
   createPurchaseOrder,
@@ -344,7 +344,7 @@ webRouter.get('/dashboard', requireWebAuth, async (req, res) => {
   };
   const lowStockProducts = products.filter((product) => {
     const inventory = product.inventoryItem;
-    return (inventory?.availableQty ?? 0) - (inventory?.reservedQty ?? 0) < 10;
+    return product.reorderPoint > 0 && (inventory?.availableQty ?? 0) - (inventory?.reservedQty ?? 0) < product.reorderPoint;
   });
   res.render('dashboard', {
     user,
@@ -354,7 +354,7 @@ webRouter.get('/dashboard', requireWebAuth, async (req, res) => {
     orderCount: orders.length,
     salesStages,
     pendingOrders: salesStages.draft + salesStages.ready,
-    openPurchaseOrders: purchaseOrders.filter((order) => order.status === 'DRAFT' || order.status === 'ORDERED').length,
+    openPurchaseOrders: purchaseOrders.filter((order) => order.status === 'DRAFT' || order.status === 'ORDERED' || order.status === 'PARTIALLY_RECEIVED').length,
     outstandingInvoiceCents,
     paidRevenueCents: invoices
       .filter((invoice) => invoice.status === 'PAID')
@@ -412,7 +412,7 @@ webRouter.get('/orders', requireWebAuth, async (_req, res) => {
 });
 
 webRouter.get('/products/new', requireWebPermission('products.write'), (req, res) => {
-  res.render('products/new', { error: req.query.error, draft: textDraft(undefined, ['sku', 'name', 'description', 'priceDollars']), fieldErrors: {} });
+  res.render('products/new', { error: req.query.error, draft: textDraft({ reorderPoint: 10 }, ['sku', 'name', 'description', 'priceDollars', 'reorderPoint']), fieldErrors: {} });
 });
 
 webRouter.post('/products', requireWebPermission('products.write'), async (req, res) => {
@@ -420,35 +420,46 @@ webRouter.post('/products', requireWebPermission('products.write'), async (req, 
     const priceCents = req.body.priceDollars !== undefined
       ? parseMoneyDollarsToCents(req.body.priceDollars, 'sale price')
       : Number(req.body.priceCents);
-    const input = createProductSchema.parse({ ...req.body, priceCents });
+    const input = createProductSchema.parse({ ...req.body, reorderPoint: req.body.reorderPoint === undefined ? undefined : Number(req.body.reorderPoint), priceCents });
     await createProduct(input, req.user!.userId);
     res.redirect('/products');
   } catch (err) {
     res.status(formErrorStatus(err)).render('products/new', {
-      error: errorMessage(err), draft: textDraft(req.body, ['sku', 'name', 'description', 'priceDollars']),
+      error: errorMessage(err), draft: textDraft(req.body, ['sku', 'name', 'description', 'priceDollars', 'reorderPoint']),
       fieldErrors: err instanceof AppError && err.statusCode === 400
         ? { priceDollars: err.message }
-        : formFieldErrors(err, 'sku', ['sku', 'name', 'description', 'priceDollars'], { priceCents: 'priceDollars' }),
+        : formFieldErrors(err, 'sku', ['sku', 'name', 'description', 'priceDollars', 'reorderPoint'], { priceCents: 'priceDollars' }),
     });
   }
 });
 
 webRouter.get('/products/:id', requireWebAuth, async (req, res) => {
   res.render('products/show', { product: await getProduct(req.params.id), error: req.query.error,
-    stockDraft: textDraft(undefined, ['quantity', 'note']), stockFieldError: '', stockIdempotencyKey: randomUUID() });
+    stockDraft: textDraft(undefined, ['quantityDelta', 'reason']), stockFieldError: '', stockIdempotencyKey: randomUUID() });
 });
 
-webRouter.post('/products/:id/stock', requireWebPermission('inventory.write'), async (req, res) => {
+webRouter.post('/products/:id/reorder-point', requireWebPermission('inventory.write'), async (req, res) => {
+  try {
+    const input = updateReorderPointSchema.parse({ reorderPoint: Number(req.body.reorderPoint) });
+    await updateProductReorderPoint(req.params.id, input.reorderPoint, req.user!.userId);
+    res.redirect(`/products/${req.params.id}`);
+  } catch (err) {
+    res.redirect(`/products/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
+  }
+});
+
+webRouter.post('/products/:id/adjustments', requireWebPermission('inventory.write'), async (req, res) => {
   try {
     const key = stockIdempotencyKeySchema.parse(req.body.idempotencyKey);
-    await addStock(req.params.id, Number(req.body.quantity), req.user!.userId, req.body.note ? String(req.body.note) : undefined, key);
+    const input = adjustStockSchema.parse({ quantityDelta: Number(req.body.quantityDelta), reason: req.body.reason });
+    await adjustStock(req.params.id, input.quantityDelta, input.reason, req.user!.userId, key);
     res.redirect(`/products/${req.params.id}`);
   } catch (err) {
     return res.status(formErrorStatus(err)).render('products/show', {
       product: await getProduct(req.params.id), error: errorMessage(err),
-      stockDraft: textDraft(req.body, ['quantity', 'note']),
+      stockDraft: textDraft(req.body, ['quantityDelta', 'reason']),
       stockIdempotencyKey: typeof req.body.idempotencyKey === 'string' && stockIdempotencyKeySchema.safeParse(req.body.idempotencyKey).success ? req.body.idempotencyKey : randomUUID(),
-      stockFieldError: err instanceof AppError && err.message.startsWith('Stock quantity') ? err.message : '',
+      stockFieldError: err instanceof AppError && (err.message.startsWith('Adjustment would leave') || err.message.startsWith('Stock adjustment')) ? err.message : '',
     });
   }
 });
@@ -476,7 +487,10 @@ webRouter.post('/orders', requireWebPermission('orders.write'), async (req, res)
 });
 
 webRouter.get('/orders/:id', requireWebAuth, async (req, res) => {
-  res.render('orders/show', { order: await getOrder(req.params.id), error: req.query.error });
+  res.render('orders/show', {
+    order: await getOrder(req.params.id), error: req.query.error,
+    defaultInvoiceDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  });
 });
 
 webRouter.post('/orders/:id/confirm', requireWebPermission('orders.write'), async (req, res) => {
@@ -499,7 +513,7 @@ webRouter.post('/orders/:id/cancel', requireWebPermission('orders.write'), async
 
 webRouter.post('/orders/:id/invoice', requireWebPermission('invoices.write'), async (req, res) => {
   try {
-    const input = createInvoiceSchema.parse({ orderId: req.params.id });
+    const input = createInvoiceSchema.parse({ orderId: req.params.id, dueDate: req.body.dueDate || undefined });
     const invoice = await createInvoice(input, req.user!.userId);
     res.redirect(`/invoices/${invoice.id}`);
   } catch (err) {
@@ -611,9 +625,14 @@ webRouter.post('/purchase-orders/:id/submit', requireWebPermission('purchases.wr
 
 webRouter.post('/purchase-orders/:id/receive', requireWebPermission('purchases.receive'), async (req, res) => {
   try {
-    const rawKey = req.body.receiptIdempotencyKey;
-    const key = rawKey === undefined ? undefined : idempotencyKeySchema.parse(rawKey);
-    await receivePurchaseOrder(req.params.id, req.user!.userId, key);
+    const key = idempotencyKeySchema.parse(req.body.receiptIdempotencyKey);
+    const purchaseOrder = await getPurchaseOrder(req.params.id);
+    const quantities = req.body.received ?? {};
+    const input = receivePurchaseOrderSchema.parse({
+      items: purchaseOrder.items.map((item) => ({ purchaseOrderItemId: item.id, quantity: Number(quantities[item.id]) }))
+        .filter((item) => item.quantity > 0),
+    });
+    await receivePurchaseOrder(req.params.id, req.user!.userId, key, input);
   } catch (err) {
     return res.redirect(`/purchase-orders/${req.params.id}?error=${encodeURIComponent(errorMessage(err))}`);
   }

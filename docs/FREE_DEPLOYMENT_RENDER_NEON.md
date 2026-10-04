@@ -1,0 +1,269 @@
+# Free mini-ERP deployment: Render + Neon + Brevo
+
+Verified against provider documentation and the local checkout on **2026-10-04**.
+Target: a personal ERP demo with synthetic records, using Render Free for the
+existing Docker application, Neon Free for PostgreSQL, and Brevo Free for email.
+This is a deployment procedure, not evidence of a completed hosted deployment.
+
+## What verification established
+
+| Item | Confirmed fact / remaining check |
+| --- | --- |
+| Neon Free | **1 GB of database storage per project**, increased from 0.5 GB on 2026-10-02; existing projects receive the increase automatically. Includes 100 CU-hours per project per month. [Announcement](https://neon.com/blog/neon-free-plan-1-gb-per-project). |
+| Render Free | Sleeps after 15 minutes without inbound traffic; waking takes about one minute. Includes 750 instance hours shared by the workspace each month. Storage inside the container is ephemeral. [Limits](https://render.com/docs/free). |
+| Database choice | Use Neon. Render's free PostgreSQL expires after 30 days. [Render limits](https://render.com/docs/free). |
+| Migration step | Render pre-deploy commands require paid services. Apply migrations separately from the exact release checkout before serving that release. [Deploy steps](https://render.com/docs/deploys). |
+| Email quota | Brevo Free includes 300 sends per day. Account activation and sender setup still need completing. [Free limits](https://help.brevo.com/hc/en-us/articles/208580669-FAQs-What-are-the-limits-of-the-Free-plan). |
+| Email transport | Render documents blocking outbound ports 25, 465, and 587. Brevo supports **2525**. Our Nodemailer configuration already requests STARTTLS on ports other than 465. Port 2525 is a candidate compatible with the current code; successful TLS negotiation and delivery **from Render have not been tested**. [Render restrictions](https://render.com/docs/free), [Brevo SMTP](https://developers.brevo.com/docs/smtp-integration). |
+| API fallback | Earlier chat instructions overstated the need to implement Brevo's HTTPS API before trying deployment. Try SMTP 2525 first. If it fails on the hosted service, the API is a fallback that requires implementation and tests; the current app has no Brevo API-key configuration. [API documentation](https://developers.brevo.com/docs/send-a-transactional-email). |
+
+Keep all three accounts on their free plans. For Render, without a payment method,
+bandwidth overages suspend free services and build-minute overages disable new
+builds rather than charging you. Account approval and provider quotas still apply.
+Use Render's supplied HTTPS address; a website domain purchase is unnecessary.
+
+## 1. Prepare accounts and an isolated database
+
+1. Sign into Render and connect the GitHub account with access to
+   `ashishbarthwal/ERP`. The local repository is `dev/mini-erp`; the workspace
+   root is not the application repository.
+2. In Neon, create a dedicated empty **demo project** (preferred) or a branch
+   that you have confirmed contains only disposable records. A branch created
+   from an existing branch may copy its data; it is not automatically empty.
+3. From Neon's **Connect** dialog, copy the pooled and direct PostgreSQL URLs
+   for that same database. Keep SSL enabled. Use the pooled URL for application
+   traffic and the direct URL for migration commands. See
+   [POSTGRES_MIGRATION.md](POSTGRES_MIGRATION.md).
+4. In Brevo, select Free, complete transactional-account activation, and configure
+   a verified sender. Authenticate an existing sender domain if available;
+   confirm what the account accepts before assuming a free-mailbox sender will
+   work. See [sender setup](https://help.brevo.com/hc/en-us/articles/7924908994450-Send-transactional-emails-using-Brevo-SMTP).
+5. Obtain the **SMTP login and SMTP key**, not the Brevo website password or API
+   key. These will populate `MAIL_USER` and `MAIL_PASSWORD`.
+
+## 2. Prepare the complete release in Git
+
+Run from `D:\Downloads\PJs\Smart Automation Framework\dev\mini-erp`:
+
+```powershell
+git status --short --branch
+git remote -v
+npm run typecheck
+npm run build
+```
+
+At this verification, the branch is `ui/full-site-polish-2026-09-29` and the
+checkout contains uncommitted application changes and three untracked migrations:
+
+- `20261001090000_partial_purchase_receipts`
+- `20261001100000_product_reorder_points`
+- `20261001110000_invoice_due_dates`
+
+Review the application/schema/migration changes together, exercise the relevant
+existing tests on an isolated PostgreSQL target, then commit and push the intended
+release to the ERP repository. Select that branch in Render; do not assume `main`
+contains these changes. Include all migration directories. Exclude credentials.
+
+Capture the full release identity after the release commit:
+
+```powershell
+$releaseSha = git rev-parse HEAD
+```
+
+Use that exact SHA for `APP_RELEASE_SHA`, the deployment, and verification.
+The app does not automatically map Render's `RENDER_GIT_COMMIT` to
+`APP_RELEASE_SHA`. Disable automatic deployment initially to keep the configured
+SHA and deployed commit aligned.
+
+## 3. Configure Render
+
+Choose **New > Web Service**, connect the ERP repository, and set:
+
+| Setting | Value |
+| --- | --- |
+| Repository | `ashishbarthwal/ERP` |
+| Branch | Branch containing the prepared release commit |
+| Runtime / Language | Docker |
+| Root directory | Leave blank; this repository already contains the app |
+| Dockerfile path | `./Dockerfile` |
+| Docker build context | Repository root (`.`), if shown |
+| Instance type | Free |
+| Docker Command override | Leave blank; the Dockerfile runs `npm start` |
+| Health check path | `/ready` |
+| Auto-deploy | Off for the first deployment and manual release procedure |
+| Region | Prefer a region close to the selected Neon database |
+
+Docker services do not use a separate build command; the Dockerfile performs
+`npm ci`, TypeScript compilation, view copying, and dependency pruning. Keep the
+default shutdown grace period, which exceeds the app's 10-second drain window.
+See [Docker deployment](https://render.com/docs/docker).
+
+Record the actual service HTTPS URL shown by Render. Set `PUBLIC_APP_URL` to it
+before testing email; if creation triggers an initial deploy before all settings
+are ready, correct them and deploy the selected release again.
+
+## 4. Set environment variables and secrets
+
+Add these in Render's environment settings, without committing their values:
+
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `staging` for the initial demo; secure cookies and transport headers are enabled |
+| `APP_RELEASE_SHA` | Exact full 40-character deployed Git SHA |
+| `DATABASE_URL` | Neon pooled URL for the dedicated demo database |
+| `DATABASE_URL_UNPOOLED` | Neon direct URL for the same database |
+| `JWT_SECRET` | Fresh randomly generated secret, at least 32 characters |
+| `PUBLIC_APP_URL` | Actual `https://<service>.onrender.com` origin |
+| `MAIL_HOST` | `smtp-relay.brevo.com` |
+| `MAIL_PORT` | `2525` |
+| `MAIL_USER` | SMTP login copied from Brevo |
+| `MAIL_PASSWORD` | Brevo SMTP key |
+| `MAIL_FROM` | Approved sender email address; current validation expects the plain address |
+| `TRUST_PROXY_HOPS` | Number of trusted proxy hops, confirmed for the actual Render route; see below |
+| `CORS_ORIGINS` | Empty for this same-origin server-rendered application |
+| `AUTH_LOGIN_ATTEMPT_LIMIT` | Optional; default 10 |
+| `AUTH_SIGNUP_ATTEMPT_LIMIT` | Optional; default 5 |
+
+Let Render supply `PORT`; the app reads it and does not require port 4000 on the
+host. Render exposes its deployed SHA and URL through default environment
+variables, but the app currently uses its own names above. See
+[Render environment variables](https://render.com/docs/environment-variables).
+
+`TRUST_PROXY_HOPS` is an environment-specific verification item, not a verified
+constant in this guide. The app defaults to 0; behind a proxy this can group all
+visitors under one rate-limit identity. Confirm the effective client address and
+header handling before public signup. Do not blindly trust all forwarded headers
+or assume 1 hop without checking the actual route. See
+[Express proxy configuration](https://expressjs.com/en/guide/behind-proxies/).
+
+Use a password manager to generate the JWT secret. Keep deployment credentials
+in a separate local file **outside the repository**, for example:
+`$env:LOCALAPPDATA\mini-erp-deploy\render-demo.env`. Populate it securely with the
+same deployment values. The current `.gitignore` ignores `.env` only, not every
+`.env.*` filename; do not place a `render-demo.env` or `.env.render-demo` in the
+checkout assuming it is ignored. Do not copy credentials into chat or logs.
+
+## 5. Validate and migrate from the release checkout
+
+These commands require Node.js 24, installed dependencies, and the successful
+build from step 2. The external environment file must exist and be populated.
+Use a fresh terminal without inherited ERP/database settings: existing process
+environment variables take precedence over Node's `--env-file` values.
+
+```powershell
+$deployEnvPath = Join-Path $env:LOCALAPPDATA 'mini-erp-deploy/render-demo.env'
+$releaseSha = git rev-parse HEAD
+node --env-file="$deployEnvPath" scripts/release/preflight.cjs $releaseSha
+```
+
+Before any write, confirm the actual target without printing credentials:
+
+```powershell
+node --env-file="$deployEnvPath" -e "for (const k of ['DATABASE_URL','DATABASE_URL_UNPOOLED']) { const u=new URL(process.env[k]); console.log(k+': '+u.hostname+u.pathname); }"
+node --env-file="$deployEnvPath" node_modules/prisma/build/index.js migrate status
+```
+
+Confirm those endpoints match the dedicated demo database in Neon. A pending
+migration status before first deployment is expected; a connection or migration
+failure requires investigation. For an existing database, establish a recoverable
+backup/restore point before schema changes. Then apply the release migrations:
+
+```powershell
+node --env-file="$deployEnvPath" node_modules/prisma/build/index.js migrate deploy
+node --env-file="$deployEnvPath" node_modules/prisma/build/index.js migrate status
+```
+
+This invokes the same Prisma operation as `npm run prisma:migrate:deploy` while
+explicitly loading the external deployment environment. Stop on any failure.
+Do not run `prisma migrate dev` or a reset against the hosted target. Do not put
+migration commands in the Docker build, and do not seed on every startup.
+
+### Initial administrator and optional synthetic records
+
+The current seed creates `admin@mini-erp.test`, a customer, a product with stock,
+and a supplier. It is a demo seed, not a real-email administrator bootstrap.
+It requires `ERP_SEED_ADMIN_PASSWORD` of at least 12 characters for hosted
+databases. Existing admin records are not overwritten, so rerunning it does not
+reset an existing password.
+
+For the confirmed empty synthetic database only, set a fresh seed password in
+the external environment file and optionally run once:
+
+```powershell
+node --env-file="$deployEnvPath" node_modules/tsx/dist/cli.mjs prisma/seed.ts
+```
+
+Remove the seed password from the file after bootstrap; do not add it to Render.
+For a custom initial admin without demo records, prepare a separate administrator
+bootstrap instead of assuming the current seed supports arbitrary email/name
+variables. Use a real mailbox test account for verification and recovery checks;
+`admin@mini-erp.test` cannot receive external email.
+
+## 6. Deploy and verify the hosted service
+
+Trigger the manual deploy for the selected release commit. Confirm the Render
+commit matches `APP_RELEASE_SHA`. Check startup logs and the `/ready` health check.
+Never switch to `development` to bypass missing mail or release settings.
+
+Open the service first and wait for the free instance to wake. The verification
+script has a 10-second request timeout, shorter than Render's documented cold
+start, so run it only after the service responds:
+
+```powershell
+$deploymentUrl = 'https://YOUR-SERVICE.onrender.com'
+npm run release:verify -- $deploymentUrl $releaseSha
+```
+
+The existing script verifies `/health`, `/ready`, `/login`, exact release headers,
+security headers, and a secure CSRF cookie. It does not prove full schema
+compatibility, client-IP/proxy correctness, email delivery, or business workflows.
+
+Complete these checks with synthetic records:
+
+1. Sign in, open the dashboard, and sign out.
+2. Submit a signup with a real test mailbox. Verify delivery through Brevo on
+   port 2525 and confirm the link uses the actual Render HTTPS origin.
+3. Complete the approval/role flow, then test password recovery for an active
+   verified test account. Signup creates a pending account, not an administrator.
+4. Confirm client-IP attribution and a denied role action.
+5. Complete a purchase receipt, sales confirmation, invoice, and payment flow.
+6. Run the read-only reconciliation command against the same demo database:
+
+```powershell
+node --env-file="$deployEnvPath" scripts/db/reconcile.cjs
+```
+
+If SMTP delivery fails, inspect Render and Brevo delivery status. Confirm account
+activation, SMTP credentials, sender acceptance, and TLS/network reachability.
+Do not disable TLS or account verification. If the hosted route cannot use 2525,
+implement and test the Brevo HTTPS API fallback before calling email operational.
+Setting an API key alone will not enable it in the current code.
+
+Save the deployment URL, exact SHA, test results, database identity, and date in
+a release record without passwords, action tokens, or connection strings.
+
+## 7. Subsequent releases and rollback
+
+For each release, review and test changes, commit/push, update the configured SHA,
+apply the exact release migrations separately, manually deploy that commit, and
+repeat verification. The Dockerfile's OCI revision label also needs `VCS_REF` as
+a build argument if it is used as release evidence; its default is `unknown`.
+The application header remains the runtime identity checked by the verifier.
+
+Keep the previous working commit available. Rolling back application code does
+not reverse PostgreSQL migrations: check compatibility first and use the
+[staging runbook](STAGING_DEPLOYMENT.md) and
+[recovery procedure](OPERATIONS_RECOVERY.md) if schema/data recovery is needed.
+Render Free retains only the two most recent deploys for its rollback feature.
+
+## Verification boundary
+
+Provider limits and procedures, Docker/package configuration, environment
+validation, email code, migration inventory, seed behavior, and release scripts
+were inspected. No Render/Brevo account was configured, no hosted SMTP delivery
+was attempted, and no database migration or seed was executed for this guide.
+`npm run typecheck` and `npm run build` passed on this checkout during verification;
+these are static/build checks, not hosted or database-backed workflow evidence.
+Proxy-hop count, account acceptance, migration runtime, and hosted workflow results
+remain deployment checks. This free setup is for the personal demo; it is not a
+live-business readiness sign-off.

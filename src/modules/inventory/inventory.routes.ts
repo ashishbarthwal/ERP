@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
 import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
-import { addStockSchema, stockIdempotencyKeySchema } from './inventory.types';
-import { addStock, getInventoryForProduct, listInventoryMovements } from './inventory.service';
+import { addStockSchema, adjustStockSchema, stockIdempotencyKeySchema } from './inventory.types';
+import { addStock, adjustStock, getInventoryForProduct, listInventoryMovements } from './inventory.service';
 
 export const inventoryRouter = Router();
 inventoryRouter.use(requireAuth);
@@ -19,6 +19,16 @@ inventoryRouter.get(
   '/:productId',
   asyncHandler(async (req, res) => {
     res.json(await getInventoryForProduct(req.params.productId));
+  }),
+);
+
+inventoryRouter.post(
+  '/:productId/adjustments',
+  requirePermission('inventory.write'),
+  asyncHandler(async (req, res) => {
+    const input = adjustStockSchema.parse(req.body);
+    const key = stockIdempotencyKeySchema.parse(req.get('Idempotency-Key'));
+    res.status(200).json(await adjustStock(req.params.productId, input.quantityDelta, input.reason, req.user!.userId, key));
   }),
 );
 

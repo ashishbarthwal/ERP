@@ -1,4 +1,4 @@
-<% const money = cents => `$${(cents / 100).toFixed(2)}`; const paidCents = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); const outstandingCents = invoice.totalCents - paidCents; const paymentProgress = invoice.totalCents ? Math.max(0, Math.min(100, Math.floor(paidCents / invoice.totalCents * 100))) : 0; %>
+<% const money = cents => `$${(cents / 100).toFixed(2)}`; const paidCents = invoice.payments.reduce((sum, payment) => sum + payment.amountCents, 0); const outstandingCents = invoice.totalCents - paidCents; const paymentProgress = invoice.totalCents ? Math.max(0, Math.min(100, Math.floor(paidCents / invoice.totalCents * 100))) : 0; const utcToday = new Date(); utcToday.setUTCHours(0,0,0,0); const overdue = invoice.status === 'PENDING' && new Date(invoice.dueAt) < utcToday; %>
 <%- include('../partials/header') %>
   <article class="document-page">
     <header class="document-header">
@@ -9,6 +9,7 @@
       <dl class="document-facts">
         <div><dt>Customer</dt><dd><a href="/customers/<%= invoice.order.customer.id %>"><%= invoice.order.customer.name %></a></dd></div>
         <div><dt>Invoice total</dt><dd data-testid="invoice-total"><%= money(invoice.totalCents) %></dd></div>
+        <div><dt>Due date</dt><dd data-testid="invoice-due-date"><%= new Date(invoice.dueAt).toLocaleDateString('en-US', { timeZone: 'UTC' }) %><% if (overdue) { %> <span class="status status-cancelled">Overdue</span><% } %></dd></div>
         <div><dt>Paid</dt><dd data-testid="invoice-paid"><%= money(paidCents) %></dd></div>
         <div><dt>Outstanding</dt><dd data-testid="invoice-outstanding"><%= money(outstandingCents) %> <span class="status status-<%= invoice.status.toLowerCase() %>" data-testid="invoice-status"><%= invoice.status %></span></dd></div>
       </dl>
@@ -35,6 +36,6 @@
         </form>
       <% } %>
     </section>
-    <section class="document-section" id="details"><h2>Document details</h2><dl class="document-meta"><div><dt>Created</dt><dd><%= new Date(invoice.createdAt).toLocaleString() %></dd></div><div><dt>Source order</dt><dd><a href="/orders/<%= invoice.order.id %>"><%= invoice.order.id.slice(0, 12) %></a></dd></div><div><dt>Paid in full</dt><dd><%= invoice.paidAt ? new Date(invoice.paidAt).toLocaleString() : 'Not yet' %></dd></div></dl></section>
+    <section class="document-section" id="details"><h2>Document details</h2><dl class="document-meta"><div><dt>Created</dt><dd><%= new Date(invoice.createdAt).toLocaleString() %></dd></div><div><dt>Due date</dt><dd><%= new Date(invoice.dueAt).toLocaleDateString('en-US', { timeZone: 'UTC' }) %></dd></div><div><dt>Source order</dt><dd><a href="/orders/<%= invoice.order.id %>"><%= invoice.order.id.slice(0, 12) %></a></dd></div><div><dt>Paid in full</dt><dd><%= invoice.paidAt ? new Date(invoice.paidAt).toLocaleString() : 'Not yet' %></dd></div></dl></section>
   </article>
 <%- include('../partials/footer') %>

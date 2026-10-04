@@ -1,6 +1,6 @@
 # Mini ERP roadmap
 
-Status: updated 30 September 2026. This is a personal project with one
+Status: updated 1 October 2026. This is a personal project with one
 fictional small distributor as its reference business. It aims to show dependable
 business workflows and professional engineering without claiming SAP parity or
 becoming a general purpose SaaS platform.
@@ -9,8 +9,9 @@ becoming a general purpose SaaS platform.
 
 The application already connects customers, suppliers, products, inventory,
 purchase orders, sales orders, invoices, payments, and operational analytics.
-Purchase receipts add stock; confirming a sale reserves stock; invoicing consumes
-reserved stock. Price and cost snapshots preserve historical document amounts.
+Purchase receipts add stock, including partial deliveries; confirming a sale
+reserves stock; invoicing consumes reserved stock. Price and cost snapshots
+preserve historical document amounts.
 There is a movement history, REST API, server rendered interface, Prisma
 migrations, and a separate change aware Playwright workflow.
 
@@ -102,10 +103,13 @@ rejected. A disabled account cannot keep acting with an old token.
    purchase receipt, stock changes, and payments recheck state under PostgreSQL
    row locks. Keep expanding race and rollback coverage.
 3. **Partially implemented:** API payment recording, purchase receipt, and
-   manual stock addition accept `Idempotency-Key`; identical retries return the
-   existing result without repeating money or stock movements, and reusing a
-   key with different details is rejected. Add equivalent protection for other
-   externally repeatable transitions.
+   manual stock addition accept `Idempotency-Key`; identical retries return
+   the existing result without repeating money or stock movements, and reusing
+   a key with different details is rejected. Invoice issuance returns the
+   existing invoice when the same order is retried after commit, without
+   repeating stock consumption or its audit event. Add explicit idempotency
+   keys for any remaining externally repeatable transitions that need caller
+   supplied retry identity.
 4. **Partially implemented:** `npm run db:reconcile` runs read-only checks for
    product inventory coverage, order reservations, invoice snapshots and totals,
    payments, and purchase/sale movement references. CI runs it against its
@@ -152,11 +156,17 @@ Build in this order, stopping when the portfolio story is complete:
    approvals/access changes, stock, sales, purchasing, invoice, and payment
    actions in a readable Admin activity log. Expand coverage to edits and
    reversals as those workflows are added.
-2. **Stock reality:** partial purchase receipts, stock counts and adjustments,
-   reorder points, and a reason for every correction. Add warehouses only when
-   the single location flow is reliable.
-3. **Sales reality:** partial fulfilment, returns and credit notes, due dates,
-   and customer balance. Define their inventory and invoice effects first.
+2. **Partially implemented:** reasoned manual stock count corrections can add
+   or remove units, preserve existing reservations, and retry safely. Purchase
+   receipts support partial line quantities with receipt history and retry
+   protection; outstanding quantities remain open commitments and receipt cost
+   is dated per delivery. Products have configurable reorder points that drive
+   dashboard and analytics alerts. Next add reorder proposals that create draft
+   purchase orders. Add warehouses only when the single location flow is
+   reliable.
+3. **Partially implemented:** invoices have editable-at-issue due dates and
+   customers show outstanding and overdue balances. Still define and implement
+   partial fulfilment, returns and credit notes with their inventory effects.
 4. **Usability at volume:** server side search, filters, pagination, clearer
    validation errors, responsive tables, accessibility review, and realistic
    demo data.

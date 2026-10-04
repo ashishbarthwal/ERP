@@ -96,6 +96,41 @@ export const addStock = async (productId: string, quantity: number, actorId: str
   });
 };
 
+// A count correction changes physical on-hand stock but never rewrites existing
+// reservations. A negative correction cannot reduce on-hand below reserved stock.
+export const adjustStock = async (productId: string, quantityDelta: number, reason: string, actorId: string, idempotencyKey: string) => {
+  if (!Number.isInteger(quantityDelta) || quantityDelta === 0) {
+    throw badRequest('Stock adjustment must be a non-zero whole number');
+  }
+  const idempotencyKeyHash = createHash('sha256').update(idempotencyKey).digest('hex');
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKeyHash}, 0)) IS NULL AS locked`;
+    const prior = await tx.inventoryMovement.findUnique({ where: { idempotencyKeyHash } });
+    if (prior) {
+      if (prior.productId !== productId || prior.type !== 'STOCK_ADJUSTMENT' || prior.quantityDelta !== quantityDelta || prior.note !== reason) {
+        throw conflict('Idempotency key was already used for a different stock adjustment');
+      }
+      return getInventoryForProduct(productId, tx);
+    }
+
+    const inventory = await lockInventoryItem(tx, productId);
+    const nextAvailable = inventory.availableQty + quantityDelta;
+    if (nextAvailable < inventory.reservedQty) {
+      throw badRequest(`Adjustment would leave ${nextAvailable} units on hand, below ${inventory.reservedQty} reserved units`);
+    }
+    const updated = await tx.inventoryItem.update({
+      where: { productId },
+      data: { availableQty: { increment: quantityDelta } },
+    });
+    await recordMovement(tx, productId, quantityDelta, 0, {
+      type: 'STOCK_ADJUSTMENT', referenceType: 'MANUAL', note: reason, idempotencyKeyHash,
+    });
+    await recordAuditEvent(tx, { actorId, action: 'stock.adjusted', entityType: 'Product', entityId: productId,
+      summary: `Adjusted on-hand stock by ${quantityDelta > 0 ? '+' : ''}${quantityDelta}: ${reason}` });
+    return updated;
+  });
+};
+
 // Reserves `quantity` units for a product. Must run inside the same transaction that
 // creates/confirms the order so reservation is atomic with the order state change.
 export const reserveStock = async (client: Client, productId: string, quantity: number, orderId?: string) => {

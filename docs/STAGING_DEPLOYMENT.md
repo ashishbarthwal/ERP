@@ -3,6 +3,10 @@
 Status: repository procedure ready; no external staging target has been selected
 or deployed yet. Use only a dedicated staging database containing synthetic data.
 
+For the recommended free personal-demo target, follow the
+[Render + Neon + Brevo guide](FREE_DEPLOYMENT_RENDER_NEON.md). It documents the
+provider-specific steps and the hosted checks that remain unverified.
+
 ## Release contract
 
 Every staging release must identify one full Git commit SHA. The application
@@ -93,6 +97,13 @@ compatibility must be reviewed for every release. If a migration damaged data
 or prevents rollback, use the separately rehearsed restore procedure in
 [the recovery runbook](OPERATIONS_RECOVERY.md); do not edit migration history or
 run improvised destructive SQL.
+
+The partial-receipt release backfills existing completed receipts and keeps
+whole-order receipts made by the previous release represented in the new
+receipt history. Its new partial-receipt status is not actionable by the older
+release, so a rollback can read or cancel the remaining commitment but must not
+continue receiving it until the partial-receipt release is restored. Older
+invoice writes receive a 30-day database default due date.
 
 ## Evidence record
 

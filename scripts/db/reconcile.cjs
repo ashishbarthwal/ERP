@@ -68,7 +68,7 @@ const runChecks = async (tx) => {
   await check('purchase receipt movements match received order lines', tx.$queryRaw`
     WITH expected AS (
       SELECT poi."purchaseOrderId", poi."productId",
-        SUM(CASE WHEN po.status = 'RECEIVED' THEN poi.quantity ELSE 0 END)::bigint AS quantity
+        SUM(poi."receivedQty")::bigint AS quantity
       FROM "PurchaseOrder" po
       JOIN "PurchaseOrderItem" poi ON poi."purchaseOrderId" = po.id
       GROUP BY poi."purchaseOrderId", poi."productId"
@@ -84,6 +84,33 @@ const runChecks = async (tx) => {
       ON a."purchaseOrderId" = e."purchaseOrderId" AND a."productId" = e."productId"
     WHERE COALESCE(e.quantity, 0) <> COALESCE(a.quantity, 0)
       OR COALESCE(a.reserved, 0) <> 0
+  `);
+
+  await check('purchase receipt batches match received quantities and statuses', tx.$queryRaw`
+    WITH batched AS (
+      SELECT pri."purchaseOrderItemId", SUM(pri.quantity)::bigint AS quantity
+      FROM "PurchaseReceiptItem" pri
+      GROUP BY pri."purchaseOrderItemId"
+    )
+    SELECT COUNT(*)::int AS violations
+    FROM "PurchaseOrderItem" poi
+    JOIN "PurchaseOrder" po ON po.id = poi."purchaseOrderId"
+    LEFT JOIN batched b ON b."purchaseOrderItemId" = poi.id
+    WHERE COALESCE(b.quantity, 0) <> poi."receivedQty"
+      OR poi."receivedQty" < 0 OR poi."receivedQty" > poi.quantity
+      OR (po.status = 'RECEIVED' AND poi."receivedQty" <> poi.quantity)
+      OR (po.status = 'PARTIALLY_RECEIVED' AND (poi."receivedQty" = 0 OR poi."receivedQty" = poi.quantity))
+      OR (po.status = 'ORDERED' AND poi."receivedQty" <> 0)
+      OR (po.status = 'RECEIVED' AND po."receivedAt" IS NULL)
+      OR (po.status = 'PARTIALLY_RECEIVED' AND po."receivedAt" IS NOT NULL)
+  `);
+
+  await check('purchase receipt lines belong to their parent purchase order', tx.$queryRaw`
+    SELECT COUNT(*)::int AS violations
+    FROM "PurchaseReceiptItem" pri
+    JOIN "PurchaseReceipt" receipt ON receipt.id = pri."receiptId"
+    JOIN "PurchaseOrderItem" poi ON poi.id = pri."purchaseOrderItemId"
+    WHERE receipt."purchaseOrderId" <> poi."purchaseOrderId"
   `);
 
   await check('sale consumption movements match invoiced lines', tx.$queryRaw`

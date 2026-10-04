@@ -2,18 +2,22 @@ import { prisma } from '../../lib/prisma';
 import { conflict, notFound } from '../../lib/errors';
 import type { CreateCustomerInput } from './customers.types';
 import { recordAuditEvent } from '../audit/audit.service';
+import { receivableTotals } from '../invoices/invoice.rules';
 
 export const listCustomers = () => prisma.customer.findMany({ orderBy: { createdAt: 'desc' } });
 
 export const getCustomer = async (id: string) => {
-  const customer = await prisma.customer.findUnique({
-    where: { id },
-    include: { orders: { orderBy: { createdAt: 'desc' } } },
-  });
+  const [customer, invoices] = await Promise.all([
+    prisma.customer.findUnique({ where: { id }, include: { orders: { orderBy: { createdAt: 'desc' } } } }),
+    prisma.invoice.findMany({
+      where: { status: 'PENDING', order: { is: { customerId: id } } },
+      select: { dueAt: true, totalCents: true, payments: { select: { amountCents: true } } },
+    }),
+  ]);
   if (!customer) {
     throw notFound(`Customer ${id} not found`);
   }
-  return customer;
+  return { ...customer, receivables: receivableTotals(invoices) };
 };
 
 export const createCustomer = async (input: CreateCustomerInput, actorId: string) => {

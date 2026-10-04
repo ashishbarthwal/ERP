@@ -1,6 +1,6 @@
 # Production readiness acceleration plan
 
-Status: drafted 30 September 2026. This plan is for the mini-ERP's **business
+Status: reviewed 1 October 2026. This plan is for the mini-ERP's **business
 deployment readiness** score. The separate personal-project score measures code
 and portfolio quality and should not be used to imply that business data is safe.
 
@@ -97,6 +97,12 @@ failed backup raises an alert.
 Scores are checkpoints, not certifications. A single unresolved critical access,
 data-loss, or transaction defect blocks the next gate regardless of the numeric
 average. Do not score an unrun activity as complete.
+
+Since the initial draft, repository development added reasoned stock count
+corrections, partial purchase receipt history, configurable reorder points,
+invoice due dates, and customer receivable balances. These improve workflow
+completeness but do not change the deployment estimate or satisfy a staging,
+monitoring, or hosted restore gate.
 
 ## Blockers and decisions to resolve first
 

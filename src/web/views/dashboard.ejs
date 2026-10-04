@@ -14,7 +14,7 @@
     <a class="stat" href="/purchase-orders"><span class="stat-label">Open purchases</span><strong class="stat-value" data-testid="open-purchases-count"><%= openPurchaseOrders %></strong><small>Draft + ordered</small></a>
     <a class="stat" href="/invoices"><span class="stat-label">Receivables</span><strong class="stat-value" data-testid="receivables-value"><%= money(outstandingInvoiceCents) %></strong><small>Outstanding balance</small></a>
     <a class="stat" href="/invoices"><span class="stat-label">Paid invoices</span><strong class="stat-value"><%= money(paidRevenueCents) %></strong><small>Lifetime billed value paid</small></a>
-    <a class="stat" href="/products"><span class="stat-label">Stock alerts</span><strong class="stat-value" data-testid="low-stock-count"><%= lowStockCount %></strong><small>Below 10 usable units</small></a>
+    <a class="stat" href="/products"><span class="stat-label">Stock alerts</span><strong class="stat-value" data-testid="low-stock-count"><%= lowStockCount %></strong><small>Below product reorder points</small></a>
   </section>
 
   <section class="dashboard-grid" aria-label="Operational workbench">
@@ -61,16 +61,16 @@
       </section>
 
       <section class="panel">
-        <div class="panel-heading"><div><h3>Stock watch</h3><p class="section-note">Usable units versus the 10-unit alert line</p></div><a href="/products">Inventory</a></div>
+        <div class="panel-heading"><div><h3>Stock watch</h3><p class="section-note">Products below their reorder points</p></div><a href="/products">Inventory</a></div>
         <% if (lowStockProducts.length) { %>
-          <% lowStockProducts.forEach(function (product) { const available = product.inventoryItem?.availableQty ?? 0; const reserved = product.inventoryItem?.reservedQty ?? 0; const usable = available - reserved; const fill = Math.max(0, Math.min(100, usable * 10)); const state = usable <= 0 ? 'progress-critical' : usable < 5 ? 'progress-ready' : 'progress-draft'; %>
-            <div class="stock-row" data-testid="low-stock-product"><div class="stock-line"><a href="/products/<%= product.id %>"><strong><%= product.name %></strong></a><strong class="<%= usable <= 0 ? 'danger' : 'warning' %>"><%= usable %> / 10</strong></div>
-              <small><%= product.sku %> · <%= reserved %> reserved · <%= usable <= 0 ? 'Critical' : usable < 5 ? 'Reorder soon' : 'Watch' %></small>
-              <div class="progress-track" role="progressbar" aria-label="<%= product.name %> usable stock against 10-unit alert line" aria-valuemin="0" aria-valuemax="10" aria-valuenow="<%= Math.max(0, Math.min(10, usable)) %>"><span class="progress-segment <%= state %>" style="width:<%= fill %>%"></span></div>
+          <% lowStockProducts.forEach(function (product) { const available = product.inventoryItem?.availableQty ?? 0; const reserved = product.inventoryItem?.reservedQty ?? 0; const usable = available - reserved; const threshold = product.reorderPoint; const fill = Math.max(0, Math.min(100, usable / threshold * 100)); const state = usable <= 0 ? 'progress-critical' : 'progress-ready'; %>
+            <div class="stock-row" data-testid="low-stock-product"><div class="stock-line"><a href="/products/<%= product.id %>"><strong><%= product.name %></strong></a><strong class="<%= usable <= 0 ? 'danger' : 'warning' %>"><%= usable %> / <%= threshold %></strong></div>
+              <small><%= product.sku %> · <%= reserved %> reserved · <%= usable <= 0 ? 'Critical' : 'Below reorder point' %></small>
+              <div class="progress-track" role="progressbar" aria-label="<%= product.name %> usable stock against its reorder point" aria-valuemin="0" aria-valuemax="<%= threshold %>" aria-valuenow="<%= Math.max(0, Math.min(threshold, usable)) %>"><span class="progress-segment <%= state %>" style="width:<%= fill %>%"></span></div>
             </div>
           <% }) %>
           <% if (lowStockCount > lowStockProducts.length) { %><p class="section-note"><%= lowStockCount - lowStockProducts.length %> more below threshold. <a href="/products">See all products</a>.</p><% } %>
-        <% } else { %><p class="section-note">No products below the 10-unit alert line.</p><% } %>
+        <% } else { %><p class="section-note">No products below their reorder points.</p><% } %>
       </section>
     </div>
   </section>

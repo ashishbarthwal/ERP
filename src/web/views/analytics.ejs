@@ -20,10 +20,10 @@
   <section class="stats stats-six" aria-label="Analytics key performance indicators">
     <div class="stat"><span class="stat-label">Invoiced</span><strong class="stat-value" data-testid="analytics-invoiced"><%= money(analytics.invoicedCents) %></strong><small><%= analytics.invoiceCount %> invoices in period</small></div>
     <div class="stat"><span class="stat-label">Cash collected</span><strong class="stat-value" data-testid="analytics-collected"><%= money(analytics.collectedCents) %></strong><small>Payments in period</small></div>
-    <div class="stat"><span class="stat-label">Open receivables</span><strong class="stat-value" data-testid="analytics-outstanding"><%= money(analytics.outstandingCents) %></strong><small><%= money(analytics.overdueCents) %> older than 30 days</small></div>
+    <div class="stat"><span class="stat-label">Open receivables</span><strong class="stat-value" data-testid="analytics-outstanding"><%= money(analytics.outstandingCents) %></strong><small><%= money(analytics.overdueCents) %> past invoice due date</small></div>
     <div class="stat"><span class="stat-label">Received purchases</span><strong class="stat-value" data-testid="analytics-received"><%= money(analytics.receivedCostCents) %></strong><small>Recorded cost in period</small></div>
     <div class="stat"><span class="stat-label">Ordered commitment</span><strong class="stat-value" data-testid="analytics-committed"><%= money(analytics.committedPurchaseCents) %></strong><small><%= analytics.openPurchaseCount %> open incl. drafts</small></div>
-    <div class="stat"><span class="stat-label">Stock alerts</span><strong class="stat-value" data-testid="analytics-low-stock"><%= analytics.lowStockCount %></strong><small>Below 10 usable units</small></div>
+    <div class="stat"><span class="stat-label">Stock alerts</span><strong class="stat-value" data-testid="analytics-low-stock"><%= analytics.lowStockCount %></strong><small>Below product reorder points</small></div>
   </section>
 
   <section class="analytics-layout" aria-label="Analytics reports">

@@ -1,12 +1,20 @@
+import { createHash, randomUUID } from 'node:crypto';
 import { prisma } from '../../lib/prisma';
-import { badRequest, notFound } from '../../lib/errors';
+import { badRequest, conflict, notFound } from '../../lib/errors';
 import { increaseStock } from '../inventory/inventory.service';
-import type { CreatePurchaseOrderInput } from './purchasing.types';
+import type { CreatePurchaseOrderInput, ReceivePurchaseOrderInput } from './purchasing.types';
 import { recordAuditEvent } from '../audit/audit.service';
 
 const purchaseOrderInclude = {
   supplier: true,
   items: { include: { product: true } },
+} as const;
+const purchaseOrderDetailInclude = {
+  ...purchaseOrderInclude,
+  receipts: {
+    orderBy: { createdAt: 'desc' as const },
+    include: { items: { include: { purchaseOrderItem: { include: { product: true } } } } },
+  },
 } as const;
 
 export const listPurchaseOrders = () =>
@@ -16,7 +24,7 @@ export const listPurchaseOrders = () =>
   });
 
 export const getPurchaseOrder = async (id: string) => {
-  const purchaseOrder = await prisma.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
+  const purchaseOrder = await prisma.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderDetailInclude });
   if (!purchaseOrder) {
     throw notFound(`Purchase order ${id} not found`);
   }
@@ -72,39 +80,91 @@ export const submitPurchaseOrder = async (id: string, actorId: string) => prisma
   return submitted;
 });
 
-export const receivePurchaseOrder = async (id: string, actorId: string, idempotencyKey?: string) =>
+export const receivePurchaseOrder = async (
+  id: string,
+  actorId: string,
+  idempotencyKey?: string,
+  input?: ReceivePurchaseOrderInput,
+) =>
   prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "PurchaseOrder" WHERE "id" = ${id} FOR UPDATE
     `;
     if (!locked.length) throw notFound(`Purchase order ${id} not found`);
-    const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
+    const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderDetailInclude });
     if (!purchaseOrder) {
       throw notFound(`Purchase order ${id} not found`);
     }
-    if (purchaseOrder.status === 'RECEIVED' && idempotencyKey && purchaseOrder.receiptIdempotencyKey === idempotencyKey) {
+    const requestHash = input
+      ? createHash('sha256').update(JSON.stringify([...input.items].sort((a, b) => a.purchaseOrderItemId.localeCompare(b.purchaseOrderItemId)))).digest('hex')
+      : 'all-remaining';
+    const key = idempotencyKey ?? randomUUID();
+    const prior = await tx.purchaseReceipt.findUnique({
+      where: { purchaseOrderId_idempotencyKey: { purchaseOrderId: id, idempotencyKey: key } },
+    });
+    if (prior) {
+      if (prior.requestHash !== 'legacy' && prior.requestHash !== requestHash) {
+        throw conflict('Idempotency key was already used for a different purchase receipt');
+      }
       return purchaseOrder;
     }
-    if (purchaseOrder.status !== 'ORDERED') {
-      throw badRequest(`Only ORDERED purchase orders can be received (current status: ${purchaseOrder.status})`);
+    if (!['ORDERED', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status)) {
+      throw badRequest(`Only ORDERED or PARTIALLY_RECEIVED purchase orders can be received (current status: ${purchaseOrder.status})`);
     }
 
-    for (const item of purchaseOrder.items) {
-      await increaseStock(tx, item.productId, item.quantity, {
+    const requested = input?.items ?? purchaseOrder.items
+      .filter((item) => item.receivedQty < item.quantity)
+      .map((item) => ({ purchaseOrderItemId: item.id, quantity: item.quantity - item.receivedQty }));
+    if (!requested.length) throw badRequest('There are no outstanding purchase order quantities to receive');
+    const itemById = new Map(purchaseOrder.items.map((item) => [item.id, item]));
+    const seenLines = new Set<string>();
+    for (const receiptLine of requested) {
+      if (!Number.isInteger(receiptLine.quantity) || receiptLine.quantity <= 0 || seenLines.has(receiptLine.purchaseOrderItemId)) {
+        throw badRequest('Receipt quantities must be positive whole numbers with one entry per purchase order line');
+      }
+      seenLines.add(receiptLine.purchaseOrderItemId);
+      const item = itemById.get(receiptLine.purchaseOrderItemId);
+      if (!item) throw badRequest('Receipt contains a line that does not belong to this purchase order');
+      const remaining = item.quantity - item.receivedQty;
+      if (receiptLine.quantity > remaining) {
+        throw badRequest(`Cannot receive ${receiptLine.quantity} units; only ${remaining} remain for ${item.product.name}`);
+      }
+    }
+
+    const receipt = await tx.purchaseReceipt.create({
+      data: {
+        purchaseOrderId: id,
+        idempotencyKey: key,
+        requestHash,
+        items: { create: requested.map(({ purchaseOrderItemId, quantity }) => ({ purchaseOrderItemId, quantity })) },
+      },
+    });
+    for (const receiptLine of requested) {
+      const item = itemById.get(receiptLine.purchaseOrderItemId)!;
+      await tx.purchaseOrderItem.update({ where: { id: item.id }, data: { receivedQty: { increment: receiptLine.quantity } } });
+      await increaseStock(tx, item.productId, receiptLine.quantity, {
         type: 'PURCHASE_RECEIPT',
         referenceType: 'PURCHASE_ORDER',
         referenceId: purchaseOrder.id,
-        note: `Received from ${purchaseOrder.supplier.name}`,
+        note: `Receipt ${receipt.id.slice(0, 12)} from ${purchaseOrder.supplier.name}`,
       });
     }
 
+    const complete = purchaseOrder.items.every((item) =>
+      item.receivedQty + (requested.find((line) => line.purchaseOrderItemId === item.id)?.quantity ?? 0) === item.quantity,
+    );
     const received = await tx.purchaseOrder.update({
       where: { id },
-      data: { status: 'RECEIVED', receivedAt: new Date(), receiptIdempotencyKey: idempotencyKey ?? null },
-      include: purchaseOrderInclude,
+      data: {
+        status: complete ? 'RECEIVED' : 'PARTIALLY_RECEIVED',
+        receivedAt: complete ? new Date() : null,
+        receiptIdempotencyKey: complete ? key : null,
+      },
+      include: purchaseOrderDetailInclude,
     });
-    await recordAuditEvent(tx, { actorId, action: 'purchase_order.received', entityType: 'PurchaseOrder', entityId: id,
-      summary: `Received purchase order from ${purchaseOrder.supplier.name}` });
+    const units = requested.reduce((sum, line) => sum + line.quantity, 0);
+    await recordAuditEvent(tx, { actorId, action: complete ? 'purchase_order.received' : 'purchase_order.partially_received', entityType: 'PurchaseOrder', entityId: id,
+      summary: `Received ${units} units from ${purchaseOrder.supplier.name}${complete ? ' and completed the order' : ''}` });
     return received;
   });
 
@@ -116,7 +176,7 @@ export const cancelPurchaseOrder = async (id: string, actorId: string) => prisma
   const purchaseOrder = await tx.purchaseOrder.findUnique({ where: { id }, include: purchaseOrderInclude });
   if (!purchaseOrder) throw notFound(`Purchase order ${id} not found`);
   if (purchaseOrder.status === 'RECEIVED') {
-    throw badRequest('A received purchase order cannot be cancelled');
+    throw badRequest('A fully received purchase order cannot be cancelled');
   }
   if (purchaseOrder.status === 'CANCELLED') {
     throw badRequest('Purchase order is already cancelled');

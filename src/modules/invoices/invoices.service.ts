@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { consumeReservedStock } from '../inventory/inventory.service';
 import type { CreateInvoiceInput, RecordPaymentInput } from './invoices.types';
+import { invoiceDueAt } from './invoice.rules';
 import { recordAuditEvent } from '../audit/audit.service';
 
 const invoiceInclude = {
@@ -38,10 +39,16 @@ export const createInvoice = async (input: CreateInvoiceInput, actorId: string) 
       include: { items: true, invoice: true },
     });
     if (!order) throw notFound(`Order ${input.orderId} not found`);
+    // The order is locked above, so a retry after a committed issuance can safely
+    // return the existing invoice without consuming reserved stock or auditing twice.
+    if (order.invoice) {
+      const existingInvoice = await tx.invoice.findUnique({ where: { orderId: order.id }, include: invoiceInclude });
+      if (!existingInvoice) throw notFound(`Invoice for order ${order.id} not found`);
+      return existingInvoice;
+    }
     if (order.status !== 'CONFIRMED') {
       throw badRequest(`Only CONFIRMED orders can be invoiced (current status: ${order.status})`);
     }
-    if (order.invoice) throw badRequest('Order already has an invoice');
     const totalCents = order.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
     for (const item of order.items) {
       await consumeReservedStock(tx, item.productId, item.quantity, order.id);
@@ -51,6 +58,7 @@ export const createInvoice = async (input: CreateInvoiceInput, actorId: string) 
       data: {
         orderId: order.id,
         totalCents,
+        dueAt: invoiceDueAt(input.dueDate),
         items: {
           create: order.items.map((item) => ({
             productId: item.productId,

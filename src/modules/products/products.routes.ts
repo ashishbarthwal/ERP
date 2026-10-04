@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
 import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
-import { createProductSchema } from './products.types';
-import { createProduct, getProduct, listProducts } from './products.service';
+import { createProductSchema, updateReorderPointSchema } from './products.types';
+import { createProduct, getProduct, listProducts, updateProductReorderPoint } from './products.service';
 
 export const productsRouter = Router();
 productsRouter.use(requireAuth);
@@ -20,6 +20,15 @@ productsRouter.post(
   asyncHandler(async (req, res) => {
     const input = createProductSchema.parse(req.body);
     res.status(201).json(await createProduct(input, req.user!.userId));
+  }),
+);
+
+productsRouter.patch(
+  '/:id/reorder-point',
+  requirePermission('inventory.write'),
+  asyncHandler(async (req, res) => {
+    const input = updateReorderPointSchema.parse(req.body);
+    res.json(await updateProductReorderPoint(req.params.id, input.reorderPoint, req.user!.userId));
   }),
 );
 

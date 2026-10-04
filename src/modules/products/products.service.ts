@@ -33,7 +33,17 @@ export const createProduct = async (input: CreateProductInput, actorId: string) 
     await tx.inventoryItem.create({ data: { productId: product.id } });
     const created = await tx.product.findUniqueOrThrow({ where: { id: product.id }, include: { inventoryItem: true } });
     await recordAuditEvent(tx, { actorId, action: 'product.created', entityType: 'Product', entityId: product.id,
-      summary: `Created product ${product.name} (${product.sku})` });
+      summary: `Created product ${product.name} (${product.sku}) with reorder point ${product.reorderPoint}` });
     return created;
   });
 };
+
+export const updateProductReorderPoint = async (id: string, reorderPoint: number, actorId: string) => prisma.$transaction(async (tx) => {
+  const product = await tx.product.findUnique({ where: { id } });
+  if (!product) throw notFound(`Product ${id} not found`);
+  if (product.reorderPoint === reorderPoint) return product;
+  const updated = await tx.product.update({ where: { id }, data: { reorderPoint } });
+  await recordAuditEvent(tx, { actorId, action: 'product.reorder_point_changed', entityType: 'Product', entityId: id,
+    summary: `Changed ${product.name} reorder point from ${product.reorderPoint} to ${reorderPoint} units` });
+  return updated;
+});

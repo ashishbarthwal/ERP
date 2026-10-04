@@ -18,6 +18,8 @@ The application includes:
 - customers, suppliers, products, and inventory
 - sales orders, purchase orders, invoices, and payments
 - atomic stock reservation, receipt, release, and consumption workflows
+- partial purchase deliveries with receipt history and reasoned stock count corrections
+- per-product reorder points that drive inventory, dashboard, and analytics alerts
 - Prisma migrations and deterministic development seed data
 - an Admin-only activity log for committed account, stock, sales, purchasing, invoice, and payment actions
 - an authenticated operational analytics cockpit with period filters and daily CSV export
@@ -32,6 +34,8 @@ See the [database recovery runbook](docs/OPERATIONS_RECOVERY.md) for the
 staging restore and cutover procedure; it still needs a staging rehearsal.
 See the [staging deployment runbook](docs/STAGING_DEPLOYMENT.md) for the
 immutable container, release preflight, verification, and rollback procedure.
+For the personal demo, see the [free Render + Neon + Brevo deployment guide](docs/FREE_DEPLOYMENT_RENDER_NEON.md)
+for verified provider settings, separate migrations, and hosted verification steps.
 See the [monitoring and incident runbook](docs/OPERATIONS_MONITORING.md) for
 structured signals, starting alert thresholds, and response procedures.
 

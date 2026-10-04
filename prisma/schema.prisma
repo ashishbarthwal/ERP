@@ -70,6 +70,7 @@ model Product {
   name          String
   description   String?
   priceCents    Int
+  reorderPoint  Int            @default(10)
   createdAt     DateTime       @default(now())
   inventoryItem InventoryItem?
   inventoryMovements InventoryMovement[]
@@ -123,6 +124,7 @@ model PurchaseOrder {
   orderedAt  DateTime?
   receivedAt DateTime?
   receiptIdempotencyKey String?
+  receipts PurchaseReceipt[]
 }
 
 model PurchaseOrderItem {
@@ -133,6 +135,33 @@ model PurchaseOrderItem {
   product         Product       @relation(fields: [productId], references: [id])
   quantity        Int
   unitCostCents   Int
+  receivedQty     Int                   @default(0)
+  receipts        PurchaseReceiptItem[]
+}
+
+model PurchaseReceipt {
+  id              String                @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  idempotencyKey  String
+  requestHash     String
+  createdAt       DateTime              @default(now())
+  items           PurchaseReceiptItem[]
+
+  @@unique([purchaseOrderId, idempotencyKey])
+  @@index([purchaseOrderId, createdAt])
+  @@index([createdAt])
+}
+
+model PurchaseReceiptItem {
+  id                  String            @id @default(cuid())
+  receiptId           String
+  receipt             PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItemId String
+  purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+  quantity            Int
+
+  @@unique([receiptId, purchaseOrderItemId])
 }
 
 model Order {
@@ -162,6 +191,7 @@ model Invoice {
   order       Order         @relation(fields: [orderId], references: [id])
   status      String        @default("PENDING")
   totalCents  Int
+  dueAt       DateTime             @default(dbgenerated("((CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + INTERVAL '30 days')"))
   items       InvoiceItem[]
   payments    Payment[]
   createdAt   DateTime      @default(now())
