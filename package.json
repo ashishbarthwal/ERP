@@ -20,7 +20,7 @@
     "release:preflight": "node scripts/release/preflight.cjs",
     "release:verify": "node scripts/release/verify-deployment.cjs"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@prisma/client": "^5.20.0",
     "bcryptjs": "^2.4.3",

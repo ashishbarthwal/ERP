@@ -70,10 +70,13 @@ Capture the full release identity after the release commit:
 $releaseSha = git rev-parse HEAD
 ```
 
-Use that exact SHA for `APP_RELEASE_SHA`, the deployment, and verification.
-The app does not automatically map Render's `RENDER_GIT_COMMIT` to
-`APP_RELEASE_SHA`. Disable automatic deployment initially to keep the configured
-SHA and deployed commit aligned.
+Use that exact SHA for local preflight, the deployment, and verification.
+On Render, `npm start` now fills an unset `APP_RELEASE_SHA` from
+`RENDER_GIT_COMMIT` and an unset `PUBLIC_APP_URL` from `RENDER_EXTERNAL_URL`.
+Explicit application values take precedence, including invalid ones: remove old
+placeholders or frozen release values from Render to use these defaults.
+Disable automatic deployment initially to keep migrations and the selected
+release aligned. [Provider defaults](https://render.com/docs/environment-variables).
 
 ## 3. Configure Render
 
@@ -98,9 +101,12 @@ Docker services do not use a separate build command; the Dockerfile performs
 default shutdown grace period, which exceeds the app's 10-second drain window.
 See [Docker deployment](https://render.com/docs/docker).
 
-Record the actual service HTTPS URL shown by Render. Set `PUBLIC_APP_URL` to it
-before testing email; if creation triggers an initial deploy before all settings
-are ready, correct them and deploy the selected release again.
+Record the actual service HTTPS URL shown by Render. Leave `PUBLIC_APP_URL` unset
+to use Render's supplied HTTPS origin automatically. If using a custom domain,
+set an explicit HTTPS origin instead. The dashboard's service name is a label;
+always use the actual URL shown by Render rather than guessing it from a rename.
+If creation triggers an initial deploy before all settings are ready, correct
+them and deploy the selected release again.
 
 ## 4. Set environment variables and secrets
 
@@ -109,11 +115,11 @@ Add these in Render's environment settings, without committing their values:
 | Variable | Value |
 | --- | --- |
 | `NODE_ENV` | `staging` for the initial demo; secure cookies and transport headers are enabled |
-| `APP_RELEASE_SHA` | Exact full 40-character deployed Git SHA |
+| `APP_RELEASE_SHA` | Leave unset on Render; `npm start` maps the actual `RENDER_GIT_COMMIT`. Set the exact SHA in the local migration/preflight file. |
 | `DATABASE_URL` | Neon pooled URL for the dedicated demo database |
 | `DATABASE_URL_UNPOOLED` | Neon direct URL for the same database |
 | `JWT_SECRET` | Fresh randomly generated secret, at least 32 characters |
-| `PUBLIC_APP_URL` | Actual `https://<service>.onrender.com` origin |
+| `PUBLIC_APP_URL` | Leave unset on Render to use `RENDER_EXTERNAL_URL`; set an explicit HTTPS origin only for a custom domain. Set the actual URL in the local preflight file. |
 | `MAIL_HOST` | `smtp-relay.brevo.com` |
 | `MAIL_PORT` | `2525` |
 | `MAIL_USER` | SMTP login copied from Brevo |
@@ -125,8 +131,11 @@ Add these in Render's environment settings, without committing their values:
 | `AUTH_SIGNUP_ATTEMPT_LIMIT` | Optional; default 5 |
 
 Let Render supply `PORT`; the app reads it and does not require port 4000 on the
-host. Render exposes its deployed SHA and URL through default environment
-variables, but the app currently uses its own names above. See
+host. `npm start` resolves the provider identity defaults before spawning the
+server, so both startup validation and subsequent email links use the same URL.
+All mail settings, both PostgreSQL URLs, and the JWT secret are validated at
+startup in staging and production. SMTP credentials being nonempty does not
+prove account activation, sender acceptance, or delivery. See
 [Render environment variables](https://render.com/docs/environment-variables).
 
 `TRUST_PROXY_HOPS` is an environment-specific verification item, not a verified
@@ -244,7 +253,7 @@ a release record without passwords, action tokens, or connection strings.
 
 ## 7. Subsequent releases and rollback
 
-For each release, review and test changes, commit/push, update the configured SHA,
+For each release, review and test changes, commit/push, update the local preflight SHA,
 apply the exact release migrations separately, manually deploy that commit, and
 repeat verification. The Dockerfile's OCI revision label also needs `VCS_REF` as
 a build argument if it is used as release evidence; its default is `unknown`.

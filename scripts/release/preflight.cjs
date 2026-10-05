@@ -1,5 +1,6 @@
 const { existsSync, readdirSync } = require('node:fs');
 const path = require('node:path');
+const { resolveRenderEnvironment } = require('./render-environment.cjs');
 
 const fullSha = /^[a-f0-9]{40}$/i;
 
@@ -16,7 +17,7 @@ const run = () => {
   const expectedSha = process.argv[2];
   const root = path.join(__dirname, '..', '..');
   const { parseRuntimeConfig } = require(path.join(root, 'dist', 'config', 'runtime-config.js'));
-  const config = parseRuntimeConfig(process.env);
+  const config = parseRuntimeConfig(resolveRenderEnvironment(process.env));
   validateReleaseArtifact({
     expectedSha,
     configuredSha: config.releaseSha,
