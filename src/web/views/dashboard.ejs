@@ -66,7 +66,7 @@
           <% lowStockProducts.forEach(function (product) { const available = product.inventoryItem?.availableQty ?? 0; const reserved = product.inventoryItem?.reservedQty ?? 0; const usable = available - reserved; const threshold = product.reorderPoint; const fill = Math.max(0, Math.min(100, usable / threshold * 100)); const state = usable <= 0 ? 'progress-critical' : 'progress-ready'; %>
             <div class="stock-row" data-testid="low-stock-product"><div class="stock-line"><a href="/products/<%= product.id %>"><strong><%= product.name %></strong></a><strong class="<%= usable <= 0 ? 'danger' : 'warning' %>"><%= usable %> / <%= threshold %></strong></div>
               <small><%= product.sku %> · <%= reserved %> reserved · <%= usable <= 0 ? 'Critical' : 'Below reorder point' %></small>
-              <div class="progress-track" role="progressbar" aria-label="<%= product.name %> usable stock against its reorder point" aria-valuemin="0" aria-valuemax="<%= threshold %>" aria-valuenow="<%= Math.max(0, Math.min(threshold, usable)) %>"><span class="progress-segment <%= state %>" style="width:<%= fill %>%"></span></div>
+              <div class="progress-track" role="progressbar" aria-label="<%= product.name %> usable stock against <%= threshold %>-unit alert line" aria-valuemin="0" aria-valuemax="<%= threshold %>" aria-valuenow="<%= Math.max(0, Math.min(threshold, usable)) %>"><span class="progress-segment <%= state %>" style="width:<%= fill %>%"></span></div>
             </div>
           <% }) %>
           <% if (lowStockCount > lowStockProducts.length) { %><p class="section-note"><%= lowStockCount - lowStockProducts.length %> more below threshold. <a href="/products">See all products</a>.</p><% } %>
