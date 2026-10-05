@@ -267,7 +267,7 @@ Render Free retains only the two most recent deploys for its rollback feature.
 
 ## Verification boundary
 
-Provider limits and procedures, Docker/package configuration, environment
+At the original 2026-10-04 research checkpoint, provider limits and procedures, Docker/package configuration, environment
 validation, email code, migration inventory, seed behavior, and release scripts
 were inspected. No Render/Brevo account was configured, no hosted SMTP delivery
 was attempted, and no database migration or seed was executed for this guide.
@@ -276,3 +276,37 @@ these are static/build checks, not hosted or database-backed workflow evidence.
 Proxy-hop count, account acceptance, migration runtime, and hosted workflow results
 remain deployment checks. This free setup is for the personal demo; it is not a
 live-business readiness sign-off.
+
+## Deployment checkpoint: 2026-10-05
+
+- Suggested Render display name: **LedgerNest Demo**. Keep using the actual
+  service URL assigned by Render, regardless of its display name.
+- Release branch: `ui/full-site-polish-2026-09-29`. Deploy its latest commit to
+  include the `npm start` mapping of Render's URL and Git SHA defaults.
+- Remove the manual `PUBLIC_APP_URL` and `APP_RELEASE_SHA` entries from Render
+  to use the provider defaults. Explicit placeholders are not ignored.
+- Runtime keys to import: `NODE_ENV`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
+  `JWT_SECRET`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`,
+  `MAIL_FROM`, `TRUST_PROXY_HOPS`, `CORS_ORIGINS`, `AUTH_LOGIN_ATTEMPT_LIMIT`,
+  and `AUTH_SIGNUP_ATTEMPT_LIMIT`. Let Render set `PORT`. Keep Render API keys
+  and one-time seed passwords out of the application runtime environment.
+- Build, typecheck, 19 app tests, and 9 operations tests passed locally after
+  adding the provider-default mapping. It preserves explicit custom settings
+  and still rejects missing or invalid deployment configuration.
+- The dedicated Neon demo project was migrated successfully. Read-only
+  reconciliation passed all 9 checks. The empty target was verified against
+  the project's endpoint before creating the initial administrator and
+  synthetic demo records. The administrator credentials are saved outside
+  the repository in `%LOCALAPPDATA%\mini-erp-deploy\ledgernest-login.txt`.
+- The previous full GitHub contract run passed before the ERP repository was
+  made public. New runs cannot resolve the private test-framework action;
+  access must be redesigned without publishing that separate repository.
+  This is an unresolved CI integration gate, not a passing hosted check.
+- SMTP login/key and a verified sender must be populated with real values.
+  An external preparation helper audits every required field and writes a
+  Render import file only when all startup checks pass; it never logs secrets.
+  Hosted SMTP delivery, proxy attribution, `/ready`, release identity, and
+  authenticated workflows still require verification after a successful deploy.
+- To apply the new startup code with the corrected environment, save the
+  environment changes without deploying, then use **Manual Deploy > Deploy
+  latest commit**. A restart of the old image will not include the new mapping.
