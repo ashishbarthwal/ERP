@@ -19,7 +19,7 @@
         <div><dt>Units received</dt><dd><%= receivedUnits %> / <%= units %></dd></div>
       </dl>
       <% if (purchaseOrder.status === 'CANCELLED') { %><p class="section-note"><%= receivedUnits ? `This purchase was cancelled after ${receivedUnits} of ${units} units arrived. Received stock remains in inventory; outstanding units will not be received.` : 'This purchase order was cancelled before receipt.' %></p><% } else { %>
-        <div class="document-progress"><span>Draft</span><div class="progress-track" role="progressbar" aria-label="Purchase order quantities received" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= progress %>"><span class="progress-segment <%= progress === 100 ? 'progress-done' : 'progress-ready' %>" style="width:<%= progress %>%"></span></div><span><%= receivedUnits %> / <%= units %> received</span></div>
+        <div class="document-progress"><span>Draft</span><div class="progress-track" role="progressbar" aria-label="Purchase order workflow" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= progress %>"><span class="progress-segment <%= progress === 100 ? 'progress-done' : 'progress-ready' %>" style="width:<%= progress %>%"></span></div><span><%= receivedUnits %> / <%= units %> received</span></div>
       <% } %>
     </header>
     <nav class="document-tabs" aria-label="Purchase order sections"><a href="#contents">Contents</a><a href="#details">Details</a></nav>
