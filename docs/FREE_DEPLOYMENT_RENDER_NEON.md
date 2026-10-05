@@ -5,6 +5,24 @@ Target: a personal ERP demo with synthetic records, using Render Free for the
 existing Docker application, Neon Free for PostgreSQL, and Brevo Free for email.
 This is a deployment procedure, not evidence of a completed hosted deployment.
 
+## Fastest personal demo: deploy without an email provider
+
+Use the existing Render Free service and migrated Neon database. Set
+`NODE_ENV=staging` and `MAIL_MODE=disabled`, plus the real database URLs,
+JWT secret, and release identity. SMTP credentials and `PUBLIC_APP_URL` are
+not required by this mode. It rejects public signup, email verification, and
+password recovery before account/token writes, and displays their unavailability
+on the login page. Existing administrator sign-in, administrator-created users,
+and authenticated ERP operations remain available. Secure staging cookies,
+CSRF protection, rate limiting, and `/ready` stay enabled. Production rejects
+disabled email mode.
+
+Apply the filled local `render-import.env` in Render, keep Free selected and
+the health path `/ready`, save environment changes, then manually deploy the
+latest commit. Sign in with the separately saved demo administrator credentials.
+For working signup and email recovery later, change `MAIL_MODE` to `smtp`,
+configure all real Brevo settings, use the actual HTTPS origin, and test delivery.
+
 ## What verification established
 
 | Item | Confirmed fact / remaining check |
@@ -119,6 +137,7 @@ Add these in Render's environment settings, without committing their values:
 | `DATABASE_URL` | Neon pooled URL for the dedicated demo database |
 | `DATABASE_URL_UNPOOLED` | Neon direct URL for the same database |
 | `JWT_SECRET` | Fresh randomly generated secret, at least 32 characters |
+| `MAIL_MODE` | `disabled` for the initial staging demo, or `smtp` for full mail workflows; production requires SMTP. |
 | `PUBLIC_APP_URL` | Leave unset on Render to use `RENDER_EXTERNAL_URL`; set an explicit HTTPS origin only for a custom domain. Set the actual URL in the local preflight file. |
 | `MAIL_HOST` | `smtp-relay.brevo.com` |
 | `MAIL_PORT` | `2525` |
@@ -133,8 +152,9 @@ Add these in Render's environment settings, without committing their values:
 Let Render supply `PORT`; the app reads it and does not require port 4000 on the
 host. `npm start` resolves the provider identity defaults before spawning the
 server, so both startup validation and subsequent email links use the same URL.
-All mail settings, both PostgreSQL URLs, and the JWT secret are validated at
-startup in staging and production. SMTP credentials being nonempty does not
+Both PostgreSQL URLs and the JWT secret are validated at startup. All mail
+settings and the HTTPS origin are also required except in explicitly disabled
+staging demo mode. SMTP credentials being nonempty does not
 prove account activation, sender acceptance, or delivery. See
 [Render environment variables](https://render.com/docs/environment-variables).
 
@@ -302,11 +322,15 @@ live-business readiness sign-off.
   made public. New runs cannot resolve the private test-framework action;
   access must be redesigned without publishing that separate repository.
   This is an unresolved CI integration gate, not a passing hosted check.
-- SMTP login/key and a verified sender must be populated with real values.
+- For SMTP-enabled deployment, login/key and a verified sender must be populated with real values.
   An external preparation helper audits every required field and writes a
   Render import file only when all startup checks pass; it never logs secrets.
   Hosted SMTP delivery, proxy attribution, `/ready`, release identity, and
   authenticated workflows still require verification after a successful deploy.
+- A later demo-only option, `MAIL_MODE=disabled`, removes the SMTP prerequisite
+  while blocking all email-dependent account operations. Build, typecheck,
+  22 app tests, and 9 operations tests passed with this option added. It does
+  not provide signup or email recovery until SMTP is configured and enabled.
 - To apply the new startup code with the corrected environment, save the
   environment changes without deploying, then use **Manual Deploy > Deploy
   latest commit**. A restart of the old image will not include the new mapping.

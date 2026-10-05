@@ -6,7 +6,7 @@ import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../l
 import type { ChangePasswordInput, LoginInput, RegisterInput, SignupInput } from './auth.types';
 import { recordAuditEvent } from '../audit/audit.service';
 import { createHash, randomBytes } from 'node:crypto';
-import { sendAccountActionEmail } from '../../lib/account-email';
+import { requireAccountEmail, sendAccountActionEmail } from '../../lib/account-email';
 
 type ActionPurpose = 'EMAIL_VERIFICATION' | 'PASSWORD_RESET';
 const actionTokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -59,6 +59,7 @@ const createUser = async (input: Pick<RegisterInput, 'email' | 'name' | 'passwor
 export const registerUser = async (input: RegisterInput, actorId: string) => createUser(input, input.role, actorId);
 
 export const signupUser = async (input: SignupInput) => {
+  requireAccountEmail();
   const user = await createUser(input, 'PENDING', null);
   const rawToken = await issueActionToken(user.id, 'EMAIL_VERIFICATION');
   if (rawToken) notifyAccountAction(user, 'EMAIL_VERIFICATION', rawToken);
@@ -66,6 +67,7 @@ export const signupUser = async (input: SignupInput) => {
 };
 
 export const resendEmailVerification = async (email: string) => {
+  requireAccountEmail();
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true, name: true, role: true, emailVerifiedAt: true } });
   if (!user || user.role !== 'PENDING' || user.emailVerifiedAt) return;
   const rawToken = await issueActionToken(user.id, 'EMAIL_VERIFICATION');
@@ -73,6 +75,7 @@ export const resendEmailVerification = async (email: string) => {
 };
 
 export const verifyAccountEmail = async (rawToken: string) => {
+  requireAccountEmail();
   if (!/^[A-Za-z0-9_-]{40,50}$/.test(rawToken)) throw badRequest('This verification link is invalid or expired.');
   const token = await prisma.accountActionToken.findUnique({
     where: { tokenHash: actionTokenHash(rawToken) },
@@ -96,6 +99,7 @@ export const verifyAccountEmail = async (rawToken: string) => {
 };
 
 export const requestPasswordReset = async (email: string) => {
+  requireAccountEmail();
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true, name: true, role: true, active: true, emailVerifiedAt: true } });
   if (!user || !user.active || user.role === 'PENDING' || !user.emailVerifiedAt) return;
   const rawToken = await issueActionToken(user.id, 'PASSWORD_RESET');
@@ -103,6 +107,7 @@ export const requestPasswordReset = async (email: string) => {
 };
 
 export const resetPassword = async (rawToken: string, password: string) => {
+  requireAccountEmail();
   if (!/^[A-Za-z0-9_-]{40,50}$/.test(rawToken)) throw badRequest('This recovery link is invalid or expired.');
   const token = await prisma.accountActionToken.findUnique({ where: { tokenHash: actionTokenHash(rawToken) } });
   const now = new Date();

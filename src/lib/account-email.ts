@@ -1,15 +1,29 @@
 import { appendFileSync } from 'node:fs';
 import nodemailer from 'nodemailer';
+import { AppError } from './errors';
+
+export const accountEmailDisabled = (environment = process.env) => environment.MAIL_MODE?.trim() === 'disabled';
+
+export const requireAccountEmail = () => {
+  if (accountEmailDisabled()) throw new AppError(503,
+    'New accounts and email recovery are unavailable in this demo. Contact the administrator.');
+};
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[character]!));
 
 export const validateMailConfiguration = (environment: Record<string, string | undefined>) => {
+  const mailMode = environment.MAIL_MODE?.trim();
+  if (mailMode && !['smtp', 'disabled'].includes(mailMode)) throw new Error('MAIL_MODE must be smtp or disabled');
+  if (mailMode === 'disabled') {
+    if (environment.NODE_ENV !== 'staging') throw new Error('Disabled email is supported only for the staging demo');
+    return { mode: 'disabled' as const };
+  }
   const keys = ['MAIL_HOST', 'MAIL_PORT', 'MAIL_USER', 'MAIL_PASSWORD', 'MAIL_FROM'];
   const present = keys.filter(key => Boolean(environment[key]?.trim()));
   const localMode = ['development', 'test'].includes(environment.NODE_ENV ?? '');
-  if (!present.length && localMode) return { mode: 'console' as const };
+  if (!present.length && localMode && !mailMode) return { mode: 'console' as const };
   if (present.length !== keys.length) throw new Error(`Set all mail settings together: ${keys.join(', ')}`);
 
   const port = Number(environment.MAIL_PORT);
@@ -36,6 +50,10 @@ export const sendAccountActionEmail = async (
   input: { to: string; name: string; purpose: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET'; rawToken: string },
 ) => {
   const config = validateMailConfiguration(process.env);
+  if (config.mode === 'disabled') {
+    requireAccountEmail();
+    throw new Error('Email delivery is disabled');
+  }
   const link = new URL(input.purpose === 'EMAIL_VERIFICATION' ? '/verify-email' : '/reset-password',
     config.mode === 'smtp' ? config.appUrl : (process.env.PUBLIC_APP_URL || `http://localhost:${process.env.PORT || '4000'}`));
   link.searchParams.set('token', input.rawToken);

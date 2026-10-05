@@ -31,10 +31,25 @@ import {
 import { analyticsCsv, getAnalytics, parseAnalyticsPeriod } from '../modules/analytics/analytics.service';
 import { prisma } from '../lib/prisma';
 import { loginAttemptLimiter, passwordResetAttemptLimiter, rateLimitMiddleware, signupAttemptLimiter } from '../middleware/ip-rate-limit';
+import { accountEmailDisabled } from '../lib/account-email';
 
 export const webViewsPath = path.join(__dirname, 'views');
 
 export const webRouter = Router();
+
+const emailAccountPaths = new Set([
+  '/signup', '/signup/success', '/verify-email', '/verify-email/resend', '/forgot-password', '/reset-password',
+]);
+webRouter.use((req, res, next) => {
+  res.locals.accountEmailEnabled = !accountEmailDisabled();
+  if (!res.locals.accountEmailEnabled && emailAccountPaths.has(req.path.toLowerCase().replace(/\/+$/, ''))) {
+    return res.status(503).render('system-error', {
+      pageTitle: 'Account requests unavailable', errorCode: '503', errorTitle: 'Account requests unavailable',
+      errorDescription: 'New accounts and email recovery are unavailable in this demo. Sign in with an account supplied by the administrator.',
+    });
+  }
+  next();
+});
 
 const errorMessage = (err: unknown) => {
   if (err instanceof AppError) return err.message;
