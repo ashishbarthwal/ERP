@@ -1,18 +1,10 @@
 <%- include('../partials/header') %>
-  <h2>New customer</h2>
-  <form action="/customers" method="post">
-    <div>
-      <label for="name">Name</label>
-      <input type="text" id="name" name="name" required />
-    </div>
-    <div>
-      <label for="email">Email</label>
-      <input type="email" id="email" name="email" required />
-    </div>
-    <div>
-      <label for="phone">Phone</label>
-      <input type="text" id="phone" name="phone" />
-    </div>
-    <button type="submit">Create customer</button>
-  </form>
+  <section class="page-heading"><div><p class="eyebrow">Sales / master data</p><h1>New customer</h1><p>Create an account for sales orders and invoices.</p></div><a class="button ghost" href="/customers">Back to customers</a></section>
+  <section class="panel master-form-panel"><form action="/customers" method="post">
+    <%- include('../partials/csrf') %>
+    <div><label for="name">Customer name</label><input type="text" id="name" name="name" value="<%= draft.name %>" autocomplete="organization" required <% if (fieldErrors.name) { %>aria-invalid="true" aria-describedby="name-error"<% } %> /><% if (fieldErrors.name) { %><p class="field-error" id="name-error"><%= fieldErrors.name %></p><% } %></div>
+    <div><label for="email">Email</label><input type="email" id="email" name="email" value="<%= draft.email %>" autocomplete="email" required <% if (fieldErrors.email) { %>aria-invalid="true" aria-describedby="email-error"<% } %> /><% if (fieldErrors.email) { %><p class="field-error" id="email-error"><%= fieldErrors.email %></p><% } %></div>
+    <div><label for="phone">Phone</label><input type="tel" id="phone" name="phone" value="<%= draft.phone %>" autocomplete="tel" <% if (fieldErrors.phone) { %>aria-invalid="true" aria-describedby="phone-error"<% } %> /><% if (fieldErrors.phone) { %><p class="field-error" id="phone-error"><%= fieldErrors.phone %></p><% } %></div>
+    <div class="form-actions"><button type="submit">Create customer</button><a class="button ghost" href="/customers">Cancel</a></div>
+  </form></section>
 <%- include('../partials/footer') %>

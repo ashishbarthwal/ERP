@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+  <section class="auth-page">
+    <div class="auth-intro">
+      <div class="auth-wordmark"><span class="brand-mark">ME</span><span>mini<span class="auth-wordmark-separator">/</span>erp</span></div>
+      <div class="auth-story"><p class="eyebrow">Your operations workspace</p><h1>You're<br /><em>on your way.</em></h1><p>One connected place for the work behind every order.</p></div>
+      <p class="auth-intro-foot">Sales, purchasing, inventory, and billing in one workspace.</p>
+    </div>
+    <section class="panel auth-panel" aria-labelledby="auth-title">
+      <div class="auth-form-heading"><p class="eyebrow">Account request received</p><h2 id="auth-title">Check your email</h2><p>Verify your email address first. After that, a workspace administrator will review your request before you can sign in.</p></div>
+      <form action="/verify-email/resend" method="post"><%- include('partials/csrf') %><div><label for="email">Work email</label><input type="email" id="email" name="email" autocomplete="email" required /></div><button class="button secondary" type="submit">Resend verification link</button></form>
+      <a class="button" href="/login">Back to sign in</a>
+    </section>
+  </section>
+<%- include('partials/footer') %>

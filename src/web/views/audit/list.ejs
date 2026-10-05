@@ -1,0 +1,21 @@
+<% const eventTarget = { Order: '/orders/', Invoice: '/invoices/', PurchaseOrder: '/purchase-orders/', Customer: '/customers/', Product: '/products/', Supplier: '/suppliers/' }; %>
+<%- include('../partials/header') %>
+  <section class="page-heading">
+    <div><p class="eyebrow">Administration / history</p><h1>Activity log</h1><p>Recent account, inventory, sales, purchasing, and payment actions.</p></div>
+    <a class="button secondary" href="/users">Workspace users</a>
+  </section>
+  <section class="list-surface" aria-label="Recent business activity">
+    <div class="list-toolbar"><strong><%= events.length %> recent event<%= events.length === 1 ? '' : 's' %></strong><span class="section-note">Showing the latest 100 committed changes</span></div>
+    <% if (events.length) { %>
+      <div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th></tr></thead><tbody>
+        <% events.forEach(function(event) { %><tr>
+          <td data-label="When"><time datetime="<%= event.createdAt.toISOString() %>"><%= new Date(event.createdAt).toLocaleString() %></time></td>
+          <td data-label="Who"><strong><%= event.actor?.name || 'Public signup' %></strong><% if (event.actor?.email) { %><span class="record-subline"><%= event.actor.email %></span><% } %></td>
+          <td data-label="Action"><span class="status role-badge"><%= event.action %></span></td>
+          <td data-label="Record"><%= event.entityType %> · <% if (eventTarget[event.entityType]) { %><a class="mono" href="<%= eventTarget[event.entityType] + event.entityId %>"><%= event.entityId.slice(0, 12) %></a><% } else { %><span class="mono"><%= event.entityId.slice(0, 12) %></span><% } %></td>
+          <td data-label="Details"><%= event.summary %></td>
+        </tr><% }) %>
+      </tbody></table></div>
+    <% } else { %><div class="list-empty"><strong>No activity recorded yet</strong>New accounts and committed business changes will appear here.</div><% } %>
+  </section>
+<%- include('../partials/footer') %>

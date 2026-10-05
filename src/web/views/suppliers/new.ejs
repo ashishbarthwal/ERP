@@ -1,9 +1,10 @@
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Purchasing master data</p><h1>New supplier</h1><p>Create a vendor that can be selected on purchase orders.</p></div></section>
-  <div class="panel" style="max-width:680px"><form action="/suppliers" method="post" data-testid="supplier-form">
-    <div><label for="name">Supplier name</label><input type="text" id="name" name="name" autocomplete="organization" required /></div>
-    <div><label for="email">Email</label><input type="email" id="email" name="email" autocomplete="email" required /></div>
-    <div><label for="phone">Phone</label><input type="tel" id="phone" name="phone" autocomplete="tel" /></div>
+  <section class="page-heading"><div><p class="eyebrow">Purchasing / master data</p><h1>New supplier</h1><p>Create a vendor that can be selected on purchase orders.</p></div><a class="button ghost" href="/suppliers">Back to suppliers</a></section>
+  <section class="panel master-form-panel"><form action="/suppliers" method="post" data-testid="supplier-form">
+    <%- include('../partials/csrf') %>
+    <div><label for="name">Supplier name</label><input type="text" id="name" name="name" value="<%= draft.name %>" autocomplete="organization" required <% if (fieldErrors.name) { %>aria-invalid="true" aria-describedby="name-error"<% } %> /><% if (fieldErrors.name) { %><p class="field-error" id="name-error"><%= fieldErrors.name %></p><% } %></div>
+    <div><label for="email">Email</label><input type="email" id="email" name="email" value="<%= draft.email %>" autocomplete="email" required <% if (fieldErrors.email) { %>aria-invalid="true" aria-describedby="email-error"<% } %> /><% if (fieldErrors.email) { %><p class="field-error" id="email-error"><%= fieldErrors.email %></p><% } %></div>
+    <div><label for="phone">Phone</label><input type="tel" id="phone" name="phone" value="<%= draft.phone %>" autocomplete="tel" <% if (fieldErrors.phone) { %>aria-invalid="true" aria-describedby="phone-error"<% } %> /><% if (fieldErrors.phone) { %><p class="field-error" id="phone-error"><%= fieldErrors.phone %></p><% } %></div>
     <div class="form-actions"><button type="submit">Create supplier</button><a class="button ghost" href="/suppliers">Cancel</a></div>
-  </form></div>
+  </form></section>
 <%- include('../partials/footer') %>

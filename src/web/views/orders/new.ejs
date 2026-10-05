@@ -1,33 +1,55 @@
 <%- include('../partials/header') %>
-  <h2>New order</h2>
-  <form action="/orders" method="post">
-    <div>
-      <label for="customerId">Customer</label>
-      <select id="customerId" name="customerId" required>
-        <option value="">Select a customer</option>
-        <% customers.forEach(function (customer) { %>
-          <option value="<%= customer.id %>"><%= customer.name %></option>
-        <% }) %>
-      </select>
+  <section class="page-heading order-page-heading">
+    <div><p class="eyebrow">Sales / order entry</p><h1>New sales order</h1><p>Build a customer order and review its estimate before saving.</p></div>
+    <a class="button ghost" href="/orders">Back to sales orders</a>
+  </section>
+  <% if (!customers.length || !products.length) { %>
+    <div class="flash" role="alert">Before creating a sales order, <% if (!customers.length) { %><a href="/customers/new">add a customer</a><% } %><% if (!customers.length && !products.length) { %> and <% } %><% if (!products.length) { %><a href="/products/new">add a product</a><% } %>.</div>
+  <% } %>
+
+  <form class="order-composer" action="/orders" method="post" data-order-composer>
+    <%- include('../partials/csrf') %>
+    <div class="order-form-main">
+      <section class="panel order-section">
+        <div class="panel-heading"><div><p class="eyebrow">01 / customer</p><h2>Customer account</h2></div><span class="section-note">Required</span></div>
+        <label class="field-label" for="customerId">Customer</label>
+        <select id="customerId" name="customerId" required data-order-customer>
+          <option value="">Select a customer</option>
+          <% customers.forEach(function (customer) { %><option value="<%= customer.id %>" <% if (typeof selectedCustomerId !== 'undefined' && selectedCustomerId === customer.id) { %>selected<% } %>><%= customer.name %></option><% }) %>
+        </select>
+      </section>
+
+      <section class="panel order-section">
+        <div class="panel-heading"><div><p class="eyebrow">02 / line items</p><h2>Products and quantities</h2><p class="section-note">Add each product once; quantities must be at least one.</p></div><button class="button secondary" type="button" data-add-order-line>+ Add product</button></div>
+        <div class="order-lines" data-order-lines>
+          <% draftItems.forEach(function (item, index) { %>
+          <div class="order-line" data-order-line>
+            <span class="order-line-number" aria-hidden="true"><%= String(index + 1).padStart(2, '0') %></span>
+            <div class="order-line-fields"><label class="field-label" for="productId-<%= index %>">Product</label><select id="productId-<%= index %>" name="items[<%= index %>][productId]" required data-order-product><option value="">Select a product</option><% products.forEach(function (product) { %><option value="<%= product.id %>" data-price-cents="<%= product.priceCents %>" <%= item.productId === product.id ? 'selected' : '' %>><%= product.name %> · $<%= (product.priceCents / 100).toFixed(2) %></option><% }) %></select></div>
+            <div class="order-quantity"><label class="field-label" for="quantity-<%= index %>">Quantity</label><input id="quantity-<%= index %>" type="number" name="items[<%= index %>][quantity]" min="1" step="1" value="<%= item.quantity || (index === 0 && !error ? '1' : '') %>" required data-order-quantity></div>
+            <button class="icon-button order-remove" type="button" aria-label="Remove product" data-remove-order-line <%= index === 0 ? 'disabled' : '' %>>×</button>
+            <div class="order-line-amount"><span>Line estimate</span><strong data-order-line-total>—</strong></div>
+          </div>
+          <% }) %>
+        </div>
+        <template data-order-line-template><div class="order-line" data-order-line>
+          <span class="order-line-number" aria-hidden="true"></span>
+          <div class="order-line-fields"><label class="field-label">Product</label><select name="items[__INDEX__][productId]" required data-order-product><option value="">Select a product</option><% products.forEach(function (product) { %><option value="<%= product.id %>" data-price-cents="<%= product.priceCents %>"><%= product.name %> · $<%= (product.priceCents / 100).toFixed(2) %></option><% }) %></select></div>
+          <div class="order-quantity"><label class="field-label">Quantity</label><input type="number" name="items[__INDEX__][quantity]" min="1" step="1" value="1" required data-order-quantity></div>
+          <button class="icon-button order-remove" type="button" aria-label="Remove product" data-remove-order-line>×</button>
+          <div class="order-line-amount"><span>Line estimate</span><strong data-order-line-total>—</strong></div>
+        </div></template>
+      </section>
     </div>
 
-    <fieldset>
-      <legend>Items</legend>
-      <% [0, 1, 2].forEach(function (i) { %>
-        <div>
-          <label for="productId-<%= i %>">Product</label>
-          <select id="productId-<%= i %>" name="items[<%= i %>][productId]">
-            <option value="">-</option>
-            <% products.forEach(function (product) { %>
-              <option value="<%= product.id %>"><%= product.name %> ($<%= (product.priceCents / 100).toFixed(2) %>)</option>
-            <% }) %>
-          </select>
-          <label for="quantity-<%= i %>">Quantity</label>
-          <input type="number" id="quantity-<%= i %>" name="items[<%= i %>][quantity]" min="1" />
-        </div>
-      <% }) %>
-    </fieldset>
-
-    <button type="submit">Create order</button>
+    <aside class="panel order-summary">
+      <p class="eyebrow">Order estimate</p><h2>Review</h2>
+      <div class="summary-customer"><span class="stat-label">Customer</span><strong data-summary-customer>Not selected</strong></div>
+      <div class="summary-total"><span>Estimated total</span><strong data-summary-total aria-live="polite" aria-atomic="true">$0.00</strong></div>
+      <div class="summary-meta"><span>Selected products</span><strong data-summary-lines>0</strong><span>Total units</span><strong data-summary-units>0</strong></div>
+      <p class="section-note">Estimate uses current product prices. Final totals are calculated by the server.</p>
+      <button class="button order-submit" type="submit" <%= !customers.length || !products.length ? 'disabled' : '' %>>Create sales order</button>
+      <a class="summary-cancel" href="/orders">Cancel</a>
+    </aside>
   </form>
 <%- include('../partials/footer') %>

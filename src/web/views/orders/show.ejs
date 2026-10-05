@@ -3,12 +3,13 @@
   <article class="document-page">
     <header class="document-header">
       <div class="document-heading">
-        <div><p class="eyebrow"><a href="/orders">Sales orders</a> / Document</p><h1>Sales order <span class="document-id"><%= order.id.slice(0, 12) %></span></h1></div>
+        <div><p class="eyebrow"><a href="/orders">Sales orders</a> / Document</p><h1>Sales order <span class="document-id"><%= order.id.slice(0, 12) %></span><span class="print-only print-document-id"><%= order.id %></span></h1></div>
         <div class="document-actions" data-testid="sales-order-actions">
-          <% if (order.status === 'DRAFT') { %><form action="/orders/<%= order.id %>/confirm" method="post"><button type="submit">Confirm & reserve</button></form><% } %>
-          <% if (order.status === 'CONFIRMED' && !order.invoice) { %><form action="/orders/<%= order.id %>/invoice" method="post"><button type="submit">Fulfill & invoice</button></form><% } %>
+          <% if (order.status === 'DRAFT' && locals.can?.('orders.write')) { %><form action="/orders/<%= order.id %>/confirm" method="post" data-confirm="Confirm this order and reserve the required stock?"><%- include('../partials/csrf') %><button type="submit">Confirm & reserve</button></form><% } %>
+          <% if (order.status === 'CONFIRMED' && !order.invoice && locals.can?.('invoices.write')) { %><form action="/orders/<%= order.id %>/invoice" method="post" data-confirm="Fulfill this order and issue its invoice? Reserved stock will be consumed."><%- include('../partials/csrf') %><label for="invoiceDueDate">Invoice due date</label><input type="date" id="invoiceDueDate" name="dueDate" value="<%= defaultInvoiceDueDate %>" required /><button type="submit">Fulfill & invoice</button></form><% } %>
           <% if (order.invoice) { %><a class="button secondary" href="/invoices/<%= order.invoice.id %>">Open invoice</a><% } %>
-          <% if (order.status !== 'CANCELLED' && !order.invoice) { %><form action="/orders/<%= order.id %>/cancel" method="post"><button class="button ghost" type="submit">Cancel order</button></form><% } %>
+          <% if (order.status !== 'CANCELLED' && !order.invoice && locals.can?.('orders.write')) { %><form action="/orders/<%= order.id %>/cancel" method="post" data-confirm="Cancel this sales order? This action cannot be undone." data-confirm-tone="danger"><%- include('../partials/csrf') %><button class="button ghost" type="submit">Cancel order</button></form><% } %>
+          <button class="button ghost" type="button" data-print-document aria-label="Print sales order">Print</button>
         </div>
       </div>
       <dl class="document-facts">
@@ -23,9 +24,9 @@
     </header>
     <nav class="document-tabs" aria-label="Sales order sections"><a href="#contents">Contents</a><a href="#details">Details</a></nav>
     <section class="document-section" id="contents">
-      <h2>Line items</h2><p class="section-note">Sale prices are captured when this order is drafted.</p><p class="table-scroll-hint">Swipe the table sideways for quantity and totals.</p>
-      <div class="table-wrap"><table class="table-plain"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit price</th><th class="numeric">Line total</th></tr></thead><tbody>
-        <% order.items.forEach(function(item, index) { %><tr data-testid="sales-order-item"><td><%= index + 1 %></td><td><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td class="mono"><%= item.product.sku %></td><td class="numeric"><%= item.quantity %></td><td class="numeric"><%= money(item.unitPriceCents) %></td><td class="numeric"><strong><%= money(item.quantity * item.unitPriceCents) %></strong></td></tr><% }) %>
+      <h2>Line items</h2><p class="section-note">Sale prices are captured when this order is drafted.</p>
+      <div class="table-wrap"><table class="table-plain document-lines"><thead><tr><th>No.</th><th>Product</th><th>SKU</th><th class="numeric">Quantity</th><th class="numeric">Unit price</th><th class="numeric">Line total</th></tr></thead><tbody>
+        <% order.items.forEach(function(item, index) { %><tr data-testid="sales-order-item"><td data-label="Line"><%= index + 1 %></td><td data-label="Product"><a href="/products/<%= item.product.id %>"><%= item.product.name %></a></td><td data-label="SKU" class="mono"><%= item.product.sku %></td><td data-label="Quantity" class="numeric"><%= item.quantity %></td><td data-label="Unit price" class="numeric"><%= money(item.unitPriceCents) %></td><td data-label="Line total" class="numeric"><strong><%= money(item.quantity * item.unitPriceCents) %></strong></td></tr><% }) %>
       </tbody></table></div>
       <div class="document-total"><div><span><%= order.items.length %> product lines · <%= units %> units</span><strong><%= money(total) %></strong></div><div><strong>Order total</strong><strong><%= money(total) %></strong></div></div>
     </section>

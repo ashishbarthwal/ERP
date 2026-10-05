@@ -1,9 +1,9 @@
 name: Change-aware ERP tests
 on:
   push:
-    branches: [main]
+    branches: [main, ui/full-site-polish-2026-09-29]
   pull_request:
-    branches: [main]
+    branches: [main, ui/full-site-polish-2026-09-29]
   workflow_dispatch:
     inputs:
       full:
@@ -18,23 +18,67 @@ concurrency:
 jobs:
   contracts:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp-test-password
+          POSTGRES_DB: erp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erp -d erp_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ERP_TEST_DATABASE_URL: postgresql://erp:erp-test-password@localhost:5432/erp_test?schema=public
+      ERP_TEST_DIRECT_URL: postgresql://erp:erp-test-password@localhost:5432/erp_test?schema=public
+      AUTH_LOGIN_ATTEMPT_LIMIT: '250'
+      AUTH_SIGNUP_ATTEMPT_LIMIT: '250'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
           path: erp
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '24'
+          package-manager-cache: false
+      - name: Check out the private reviewed contract runner
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: ashishbarthwal/ai-self-healing-test-automation-framework
+          ref: fee2389edbf21d5c41eebec93da7857f1027a024
+          path: contract-runner
+          ssh-key: ${{ secrets.ERP_CONTRACT_RUNNER_SSH_KEY }}
+          persist-credentials: false
+      - name: Build immutable deployment image
+        run: docker build --build-arg "VCS_REF=${{ github.event.pull_request.head.sha || github.sha }}" --tag "mini-erp:${{ github.event.pull_request.head.sha || github.sha }}" .
+        working-directory: ${{ github.workspace }}/erp
       - name: Analyze changes and run generated contracts
-        # Reviewed framework foundation. Update this pin after verifying framework upgrades.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@07492d830da84a3233d01ae90b99b421a3a9e98a
+        # Reviewed PostgreSQL contract runner pinned to a CI-verified framework commit.
+        uses: ./contract-runner
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
           head-sha: ${{ github.event.pull_request.head.sha || github.sha }}
           full: ${{ github.event_name == 'workflow_dispatch' && inputs.full || false }}
+      - name: Verify PostgreSQL backup and restore
+        run: npm run test:ops
+        working-directory: ${{ github.workspace }}/erp
+      - name: Reconcile ERP stock and invoice records
+        run: npm run db:reconcile
+        working-directory: ${{ github.workspace }}/erp
+        env:
+          DATABASE_URL: ${{ env.ERP_TEST_DATABASE_URL }}
+      - name: Run PostgreSQL backup and restore smoke
+        run: npm run db:backup-restore:smoke
+        working-directory: ${{ github.workspace }}/erp
+
+

@@ -3,15 +3,25 @@
 Sign in and open `/analytics` for a live, read-only cockpit. The 7/30/90-day
 selector uses UTC calendar days, including today. Invoiced value counts invoices
 by creation date; collected value counts payments by posting date; received
-purchase cost counts received purchase orders by receipt date. These events
+purchase cost counts each receipt batch by its recorded date, including partial
+deliveries. These events
 can occur on different days and should not be subtracted to infer profit.
 
-Open receivables, ordered purchase commitments and low-stock alerts are
+The invoicing/collections chart switches between Columns, Lines, Area, Pie,
+and Donut. Pie and Donut show the selected measure's share across interval
+groups; use their Invoiced/Collected control to change the measure. Select a
+mark or legend item for its exact interval and values. Longer periods combine
+adjacent buckets into at most five share groups. Charts remain read-only and
+do not change the underlying transactions.
+
+Open receivables, remaining ordered purchase commitments and low-stock alerts are
 **current snapshots**, unaffected by the period selector. Receivables are
 unpaid invoice amounts after partial payments. The overdue figure is the
-portion on invoices created more than 30 days ago; it is not a contractual
-due-date calculation. Ordered commitments exclude draft purchase orders.
-Stock alerts mean fewer than 10 available-minus-reserved units. Product rankings
+unpaid amount on invoices whose due date is before today. Due dates default to
+30 days after issuance and can be set when an invoice is created. Ordered
+commitments exclude draft purchase orders.
+Stock alerts mean a product's available-minus-reserved quantity is below its
+configured reorder point; a zero reorder point disables its alert. Product rankings
 use invoiced line prices, not the current product price. This is operational
 reporting, not a general ledger or financial statement.
 

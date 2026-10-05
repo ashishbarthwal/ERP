@@ -1,4 +1,4 @@
-<% const movementLabel = (type) => ({ MANUAL_ADDITION: 'Manual addition', PURCHASE_RECEIPT: 'Purchase receipt', ORDER_RESERVATION: 'Sales reservation', ORDER_RELEASE: 'Reservation released', SALE_CONSUMPTION: 'Sale fulfilled' }[type] || type); %>
+<% const movementLabel = (type) => ({ MANUAL_ADDITION: 'Manual addition', STOCK_ADJUSTMENT: 'Stock count correction', PURCHASE_RECEIPT: 'Purchase receipt', ORDER_RESERVATION: 'Sales reservation', ORDER_RELEASE: 'Reservation released', SALE_CONSUMPTION: 'Sale fulfilled' }[type] || type); const usableQty = product.inventoryItem.availableQty - product.inventoryItem.reservedQty; const reorderPoint = product.reorderPoint; const stockFill = reorderPoint > 0 ? Math.max(0, Math.min(100, usableQty / reorderPoint * 100)) : 100; const stockTone = usableQty <= 0 && reorderPoint > 0 ? 'progress-critical' : usableQty < reorderPoint && reorderPoint > 0 ? 'progress-ready' : 'progress-done'; %>
 <%- include('../partials/header') %>
   <section class="page-heading"><div><p class="eyebrow">Catalog / <%= product.sku %></p><h1><%= product.name %></h1><p><%= product.description || 'No product description.' %></p></div><a class="button secondary" href="/products">Back to products</a></section>
 
@@ -6,26 +6,30 @@
     <div class="stat"><span class="stat-label">Sale price</span><strong class="stat-value">$<%= (product.priceCents / 100).toFixed(2) %></strong></div>
     <div class="stat"><span class="stat-label">On hand</span><strong class="stat-value" data-testid="available-qty"><%= product.inventoryItem.availableQty %></strong></div>
     <div class="stat"><span class="stat-label">Reserved</span><strong class="stat-value" data-testid="reserved-qty"><%= product.inventoryItem.reservedQty %></strong></div>
-    <div class="stat"><span class="stat-label">Usable</span><strong class="stat-value" data-testid="usable-qty"><%= product.inventoryItem.availableQty - product.inventoryItem.reservedQty %></strong></div>
+    <div class="stat stat-stock-health"><span class="stat-label">Usable stock</span><strong class="stat-value" data-testid="usable-qty"><%= usableQty %></strong><small><%= reorderPoint === 0 ? 'Stock alert disabled' : usableQty < reorderPoint ? `Below reorder point of ${reorderPoint}` : `At or above reorder point of ${reorderPoint}` %></small><div class="progress-track" role="progressbar" aria-label="Usable stock against <%= reorderPoint %>-unit alert line" aria-valuemin="0" aria-valuemax="<%= Math.max(1, reorderPoint) %>" aria-valuenow="<%= Math.max(0, Math.min(Math.max(1, reorderPoint), usableQty)) %>"><span class="progress-segment <%= stockTone %>" style="width:<%= stockFill %>%"></span></div></div>
+    <div class="stat"><span class="stat-label">Reorder point</span><strong class="stat-value"><%= reorderPoint === 0 ? 'Off' : reorderPoint %></strong><small>Usable units</small></div>
   </section>
 
   <section class="detail-grid">
-    <div class="panel">
-      <div class="panel-heading"><div><h3>Manual stock adjustment</h3><span>For corrections and initial stock only</span></div></div>
-      <form action="/products/<%= product.id %>/stock" method="post" data-testid="stock-adjustment-form">
-        <div><label for="quantity">Quantity to add</label><input type="number" id="quantity" name="quantity" min="1" required /></div>
-        <div><label for="note">Reason</label><input type="text" id="note" name="note" placeholder="e.g. Opening balance correction" maxlength="160" /></div>
-        <button type="submit">Add stock</button>
+    <% if (locals.can?.('inventory.write')) { %><div class="panel"><div class="panel-heading"><div><h3>Reorder point</h3><span>Set the stock alert for this product</span></div></div><form action="/products/<%= product.id %>/reorder-point" method="post"><%- include('../partials/csrf') %><label for="reorderPoint">Alert below (usable units)</label><input type="number" id="reorderPoint" name="reorderPoint" value="<%= reorderPoint %>" min="0" step="1" required /><p class="helper">Set 0 to exclude this product from low-stock alerts.</p><button type="submit">Save reorder point</button></form></div><% } %>
+    <% if (locals.can?.('inventory.write')) { %><div class="panel">
+      <div class="panel-heading"><div><h3>Correct stock count</h3><span>Record a counted difference with a reason</span></div></div>
+      <form action="/products/<%= product.id %>/adjustments" method="post" data-testid="stock-adjustment-form" data-confirm="Apply this stock count correction? Inventory on-hand quantity will change.">
+        <%- include('../partials/csrf') %>
+        <input type="hidden" name="idempotencyKey" value="<%= stockIdempotencyKey %>" />
+        <div><label for="quantityDelta">On-hand adjustment</label><input type="number" id="quantityDelta" name="quantityDelta" step="1" value="<%= stockDraft.quantityDelta %>" placeholder="e.g. -2 or 5" required <% if (stockFieldError) { %>aria-invalid="true" aria-describedby="stock-adjustment-error"<% } %> /><% if (stockFieldError) { %><p class="field-error" id="stock-adjustment-error"><%= stockFieldError %></p><% } %><p class="helper">Use a negative number for a shortage and a positive number for extra units.</p></div>
+        <div><label for="reason">Reason</label><input type="text" id="reason" name="reason" value="<%= stockDraft.reason %>" placeholder="e.g. Cycle count on receiving shelf" minlength="3" maxlength="160" required /></div>
+        <button type="submit">Apply correction</button>
       </form>
-      <p class="helper">Normal replenishment should use a purchase order so the receipt has a supplier trail.</p>
-    </div>
+      <p class="helper">This preserves reserved units. Use a purchase order for normal replenishment so the receipt has a supplier trail.</p>
+    </div><% } %>
 
     <div class="panel">
       <div class="panel-heading"><div><h3>Inventory movement ledger</h3><span>Latest 20 changes</span></div></div>
       <% if (product.inventoryMovements.length) { %>
-        <div class="table-wrap"><table data-testid="inventory-ledger"><thead><tr><th>Movement</th><th>On hand</th><th>Reserved</th><th>When</th></tr></thead><tbody>
+        <div class="table-wrap responsive-summary-wrap"><table class="responsive-summary-table inventory-ledger" data-testid="inventory-ledger"><thead><tr><th>Movement</th><th class="numeric">On-hand change</th><th class="numeric">Reserved change</th><th>When</th></tr></thead><tbody>
           <% product.inventoryMovements.forEach(function (movement) { %>
-            <tr data-testid="inventory-movement"><td><strong><%= movementLabel(movement.type) %></strong><% if (movement.note) { %><br><small><%= movement.note %></small><% } %><% if (movement.referenceId) { %><br><span class="mono"><%= movement.referenceId.slice(0, 12) %></span><% } %></td><td class="<%= movement.quantityDelta >= 0 ? 'positive' : 'danger' %>"><%= movement.quantityDelta > 0 ? '+' : '' %><%= movement.quantityDelta %></td><td class="<%= movement.reservedDelta > 0 ? 'warning' : (movement.reservedDelta < 0 ? 'positive' : '') %>"><%= movement.reservedDelta > 0 ? '+' : '' %><%= movement.reservedDelta %></td><td><%= new Date(movement.createdAt).toLocaleString() %></td></tr>
+            <tr data-testid="inventory-movement"><td data-label="Movement"><strong><%= movementLabel(movement.type) %></strong><% if (movement.note) { %><br><small><%= movement.note %></small><% } %><% if (movement.referenceId) { %><br><span class="mono"><%= movement.referenceId.slice(0, 12) %></span><% } %></td><td class="numeric <%= movement.quantityDelta >= 0 ? 'positive' : 'danger' %>" data-label="On-hand change"><%= movement.quantityDelta > 0 ? '+' : '' %><%= movement.quantityDelta %></td><td class="numeric <%= movement.reservedDelta > 0 ? 'warning' : (movement.reservedDelta < 0 ? 'positive' : '') %>" data-label="Reserved change"><%= movement.reservedDelta > 0 ? '+' : '' %><%= movement.reservedDelta %></td><td data-label="When"><%= new Date(movement.createdAt).toLocaleString() %></td></tr>
           <% }) %>
         </tbody></table></div>
       <% } else { %><div class="empty">No recorded stock movements yet.</div><% } %>

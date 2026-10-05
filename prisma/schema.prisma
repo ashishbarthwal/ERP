@@ -1,19 +1,17 @@
-// Original schema design for mini-erp. See docs/architecture/mini-erp.md for rationale.
-// SQLite for local dev; datasource provider is the only change needed to target Postgres later.
+// PostgreSQL is the application database for local, test, and hosted environments.
+// See docs/POSTGRES_MIGRATION.md for Neon setup and retained SQLite history.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-// SQLite has no native enum type, so Role/OrderStatus/InvoiceStatus are plain strings
-// constrained by the TypeScript literal types in src/modules/*/*.types.ts and validated
-// at the service layer. Swapping the datasource to Postgres later can reintroduce real
-// Prisma enums without changing application code.
+// Status and role values remain strings constrained by TypeScript schemas and service validation.
 
 model User {
   id           String   @id @default(cuid())
@@ -21,7 +19,40 @@ model User {
   passwordHash String
   name         String
   role         String   @default("STAFF")
+  active       Boolean  @default(true)
+  tokenVersion Int      @default(0)
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
+  auditEvents  AuditEvent[]
+  actionTokens AccountActionToken[]
+}
+
+model AccountActionToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String
+  tokenHash String   @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, expiresAt])
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model Customer {
@@ -39,6 +70,7 @@ model Product {
   name          String
   description   String?
   priceCents    Int
+  reorderPoint  Int            @default(10)
   createdAt     DateTime       @default(now())
   inventoryItem InventoryItem?
   inventoryMovements InventoryMovement[]
@@ -66,6 +98,7 @@ model InventoryMovement {
   referenceType String?
   referenceId   String?
   note          String?
+    idempotencyKeyHash String? @unique
   createdAt     DateTime @default(now())
 
   @@index([productId, createdAt])
@@ -90,6 +123,8 @@ model PurchaseOrder {
   createdAt  DateTime            @default(now())
   orderedAt  DateTime?
   receivedAt DateTime?
+  receiptIdempotencyKey String?
+  receipts PurchaseReceipt[]
 }
 
 model PurchaseOrderItem {
@@ -100,6 +135,33 @@ model PurchaseOrderItem {
   product         Product       @relation(fields: [productId], references: [id])
   quantity        Int
   unitCostCents   Int
+  receivedQty     Int                   @default(0)
+  receipts        PurchaseReceiptItem[]
+}
+
+model PurchaseReceipt {
+  id              String                @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  idempotencyKey  String
+  requestHash     String
+  createdAt       DateTime              @default(now())
+  items           PurchaseReceiptItem[]
+
+  @@unique([purchaseOrderId, idempotencyKey])
+  @@index([purchaseOrderId, createdAt])
+  @@index([createdAt])
+}
+
+model PurchaseReceiptItem {
+  id                  String            @id @default(cuid())
+  receiptId           String
+  receipt             PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItemId String
+  purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+  quantity            Int
+
+  @@unique([receiptId, purchaseOrderItemId])
 }
 
 model Order {
@@ -129,6 +191,7 @@ model Invoice {
   order       Order         @relation(fields: [orderId], references: [id])
   status      String        @default("PENDING")
   totalCents  Int
+  dueAt       DateTime             @default(dbgenerated("((CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + INTERVAL '30 days')"))
   items       InvoiceItem[]
   payments    Payment[]
   createdAt   DateTime      @default(now())
@@ -146,10 +209,21 @@ model InvoiceItem {
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
-  amountCents Int
-  method      String   @default("manual")
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id])
+  amountCents    Int
+  method         String   @default("manual")
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+
+  @@unique([invoiceId, idempotencyKey])
+}
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
 }

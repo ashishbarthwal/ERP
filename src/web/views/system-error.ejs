@@ -1,0 +1,13 @@
+<%- include('partials/header') %>
+  <section class="system-page" aria-labelledby="system-title">
+    <% if (!locals.isAuthenticated) { %><a class="system-brand" href="/login"><span class="brand-mark">ME</span> mini/erp</a><% } %>
+    <div class="system-panel">
+      <span class="system-code"><%= errorCode %></span>
+      <p class="eyebrow">Workspace notice</p>
+      <h1 id="system-title"><%= errorTitle %></h1>
+      <p><%= errorDescription %></p>
+      <% if (locals.requestId) { %><p class="section-note">Reference ID: <code><%= requestId %></code></p><% } %>
+      <a class="button" href="<%= locals.isAuthenticated ? '/dashboard' : '/login' %>"><%= locals.isAuthenticated ? 'Back to overview' : 'Go to sign in' %></a>
+    </div>
+  </section>
+<%- include('partials/footer') %>

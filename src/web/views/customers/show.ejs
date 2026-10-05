@@ -1,12 +1,14 @@
 <%- include('../partials/header') %>
-  <h2>Customer: <%= customer.name %></h2>
-  <p>Email: <%= customer.email %></p>
-  <p>Phone: <%= customer.phone || '-' %></p>
-  <h3>Orders</h3>
-  <ul>
-    <% customer.orders.forEach(function (order) { %>
-      <li><a href="/orders/<%= order.id %>"><%= order.id %></a> - <%= order.status %></li>
-    <% }) %>
-  </ul>
-  <% if (customer.orders.length === 0) { %><p>No orders yet.</p><% } %>
+  <section class="page-heading"><div><p class="eyebrow"><a href="/customers">Customers</a> / Account</p><h1><%= customer.name %></h1><p>Customer account and sales order history.</p></div><% if (locals.can?.('orders.write')) { %><a class="button" href="/orders/new?customerId=<%= customer.id %>">New sales order</a><% } %></section>
+  <section class="stats stats-three" aria-label="Customer receivables"><div class="stat"><span class="stat-label">Outstanding balance</span><strong class="stat-value" data-testid="customer-balance">$<%= (customer.receivables.outstandingCents / 100).toFixed(2) %></strong><small>Unpaid invoices after recorded payments</small></div><div class="stat"><span class="stat-label">Overdue</span><strong class="stat-value <%= customer.receivables.overdueCents ? 'danger' : '' %>" data-testid="customer-overdue">$<%= (customer.receivables.overdueCents / 100).toFixed(2) %></strong><small>Past the invoice due date</small></div><div class="stat"><span class="stat-label">Sales orders</span><strong class="stat-value"><%= customer.orders.length %></strong><small>All-time records</small></div></section>
+  <section class="detail-grid customer-detail">
+    <div class="panel"><div class="panel-heading"><div><p class="eyebrow">Account profile</p><h2>Contact details</h2></div></div>
+      <dl class="detail-list"><div><dt>Email</dt><dd><a href="mailto:<%= customer.email %>"><%= customer.email %></a></dd></div><div><dt>Phone</dt><dd><%= customer.phone || 'Not provided' %></dd></div><div><dt>Open invoices</dt><dd><%= customer.receivables.invoiceCount %></dd></div></dl>
+    </div>
+    <div class="panel"><div class="panel-heading"><div><p class="eyebrow">Sales</p><h2>Order history</h2><p class="section-note"><%= customer.orders.length %> customer order<%= customer.orders.length === 1 ? '' : 's' %></p></div><a href="/orders">Order register</a></div>
+      <% if (customer.orders.length) { %><div class="table-wrap responsive-summary-wrap"><table class="table-plain responsive-summary-table"><thead><tr><th>Order reference</th><th>Stage</th><th>Created</th></tr></thead><tbody>
+        <% customer.orders.forEach(function (order) { %><tr><td class="mono" data-label="Order reference"><a href="/orders/<%= order.id %>" aria-label="Open sales order <%= order.id %>"><%= order.id.slice(0, 12) %></a></td><td data-label="Stage"><span class="status status-<%= order.status.toLowerCase() %>"><%= order.status %></span></td><td data-label="Created"><%= new Date(order.createdAt).toLocaleDateString('en-US') %></td></tr><% }) %>
+      </tbody></table></div><% } else { %><div class="list-empty"><strong>No orders yet</strong>Start a sales order for this customer when they are ready.</div><% } %>
+    </div>
+  </section>
 <%- include('../partials/footer') %>

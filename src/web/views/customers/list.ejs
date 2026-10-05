@@ -1,9 +1,9 @@
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Sales / master data</p><h1>Customers</h1><p>Accounts used across orders and invoices.</p></div><a class="button" href="/customers/new">Add customer</a></section>
+  <section class="page-heading"><div><p class="eyebrow">Sales / master data</p><h1>Customers</h1><p>Accounts used across orders and invoices.</p></div><% if (locals.can?.('customers.write')) { %><a class="button" href="/customers/new">Add customer</a><% } %></section>
   <section class="list-surface" data-list-view aria-label="Customer register">
     <div class="list-toolbar"><strong data-list-count aria-live="polite">Showing <%= customers.length %> of <%= customers.length %></strong><div class="list-controls"><label>Search customers<input type="search" placeholder="Name or email" data-list-search /></label></div></div>
-    <% if (customers.length) { %><div class="table-wrap"><table id="customer-table"><thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th><span class="sr-only">Open customer</span></th></tr></thead><tbody>
-      <% customers.forEach(function (customer) { %><tr data-filter-row><td><a class="record-link" href="/customers/<%= customer.id %>"><%= customer.name %></a></td><td><%= customer.email %></td><td><%= customer.phone || '—' %></td><td><a class="table-action" href="/customers/<%= customer.id %>">View customer</a></td></tr><% }) %>
+    <% if (customers.length) { %><div class="table-wrap"><table id="customer-table"><thead><tr><th>Customer</th><th>Email</th><th>Phone</th></tr></thead><tbody>
+      <% customers.forEach(function (customer) { %><tr data-filter-row><td><a class="record-link" href="/customers/<%= customer.id %>" aria-label="Open customer <%= customer.name %>"><%= customer.name %></a></td><td><%= customer.email %></td><td><%= customer.phone || '—' %></td></tr><% }) %>
     </tbody></table></div><div class="list-empty" data-list-no-results hidden><strong>No matching customers</strong>Try another name or email.</div>
     <% } else { %><div class="list-empty"><strong>No customers yet</strong>Add a customer before drafting a sales order.</div><% } %>
   </section>

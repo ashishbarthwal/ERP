@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { receivableTotals } from '../invoices/invoice.rules';
 
 export const analyticsPeriods = [7, 30, 90] as const;
 export type AnalyticsPeriod = (typeof analyticsPeriods)[number];
@@ -11,13 +12,13 @@ export function parseAnalyticsPeriod(value: unknown): AnalyticsPeriod {
 export async function getAnalytics(days: AnalyticsPeriod, now = new Date()) {
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - days + 1));
   const until = now;
-  const [invoices, payments, receivables, salesOrders, purchaseOrders, openPurchases, products] = await Promise.all([
+  const [invoices, payments, receivables, salesOrders, purchaseReceipts, openPurchases, products] = await Promise.all([
     prisma.invoice.findMany({ where: { createdAt: { gte: since, lte: until } }, include: { items: { include: { product: true } } } }),
     prisma.payment.findMany({ where: { createdAt: { gte: since, lte: until } } }),
     prisma.invoice.findMany({ where: { status: 'PENDING' }, include: { payments: true } }),
-    prisma.order.findMany({ where: { createdAt: { gte: since, lte: until } }, select: { status: true } }),
-    prisma.purchaseOrder.findMany({ where: { receivedAt: { gte: since, lte: until }, status: 'RECEIVED' }, include: { items: true } }),
-    prisma.purchaseOrder.findMany({ where: { status: { in: ['DRAFT', 'ORDERED'] } }, include: { items: true } }),
+    prisma.order.findMany({ where: { createdAt: { gte: since, lte: until } }, select: { status: true, invoice: { select: { id: true } } } }),
+    prisma.purchaseReceipt.findMany({ where: { createdAt: { gte: since, lte: until } }, include: { items: { include: { purchaseOrderItem: true } } } }),
+    prisma.purchaseOrder.findMany({ where: { status: { in: ['DRAFT', 'ORDERED', 'PARTIALLY_RECEIVED'] } }, include: { items: true } }),
     prisma.product.findMany({ include: { inventoryItem: true } }),
   ]);
 
@@ -40,20 +41,28 @@ export async function getAnalytics(days: AnalyticsPeriod, now = new Date()) {
     }
   }
   for (const payment of payments) byDay.get(dayKey(payment.createdAt))!.collectedCents += payment.amountCents;
-  for (const purchase of purchaseOrders) {
-    byDay.get(dayKey(purchase.receivedAt!))!.receivedCostCents += purchase.items.reduce((sum, item) => sum + item.quantity * item.unitCostCents, 0);
+  for (const receipt of purchaseReceipts) {
+    byDay.get(dayKey(receipt.createdAt))!.receivedCostCents += receipt.items.reduce(
+      (sum, item) => sum + item.quantity * item.purchaseOrderItem.unitCostCents, 0,
+    );
   }
 
   const invoicedCents = invoices.reduce((sum, invoice) => sum + invoice.totalCents, 0);
   const collectedCents = payments.reduce((sum, payment) => sum + payment.amountCents, 0);
   const receivedCostCents = trend.reduce((sum, day) => sum + day.receivedCostCents, 0);
-  const outstandingCents = receivables.reduce((sum, invoice) => sum + Math.max(0, invoice.totalCents - invoice.payments.reduce((paid, payment) => paid + payment.amountCents, 0)), 0);
-  const overdueCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const overdueCents = receivables.filter(invoice => invoice.createdAt < overdueCutoff).reduce((sum, invoice) => sum + Math.max(0, invoice.totalCents - invoice.payments.reduce((paid, payment) => paid + payment.amountCents, 0)), 0);
-  const committedPurchaseCents = openPurchases.filter(order => order.status === 'ORDERED').reduce((sum, order) => sum + order.items.reduce((value, item) => value + item.quantity * item.unitCostCents, 0), 0);
-  const stockAlerts = products.filter(product => (product.inventoryItem?.availableQty ?? 0) - (product.inventoryItem?.reservedQty ?? 0) < 10);
+  const { outstandingCents, overdueCents } = receivableTotals(receivables, now);
+  const committedPurchaseCents = openPurchases.filter(order => order.status !== 'DRAFT').reduce(
+    (sum, order) => sum + order.items.reduce((value, item) => value + (item.quantity - item.receivedQty) * item.unitCostCents, 0), 0,
+  );
+  const stockAlerts = products.filter(product => product.reorderPoint > 0
+    && (product.inventoryItem?.availableQty ?? 0) - (product.inventoryItem?.reservedQty ?? 0) < product.reorderPoint);
   const topProducts = [...productTotals.values()].sort((a, b) => b.revenueCents - a.revenueCents || a.sku.localeCompare(b.sku)).slice(0, 5);
-  const salesStatuses = Object.fromEntries(['DRAFT', 'CONFIRMED', 'CANCELLED'].map(status => [status, salesOrders.filter(order => order.status === status).length]));
+  const salesStatuses = {
+    DRAFT: salesOrders.filter(order => order.status === 'DRAFT').length,
+    CONFIRMED: salesOrders.filter(order => order.status === 'CONFIRMED' && !order.invoice).length,
+    INVOICED: salesOrders.filter(order => Boolean(order.invoice)).length,
+    CANCELLED: salesOrders.filter(order => order.status === 'CANCELLED').length,
+  };
   const bucketDays = days === 7 ? 1 : days === 30 ? 3 : 7;
   const chart = [];
   for (let offset = 0; offset < trend.length; offset += bucketDays) {

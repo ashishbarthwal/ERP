@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+  <section class="auth-page">
+    <div class="auth-intro">
+      <div class="auth-wordmark"><span class="brand-mark">ME</span><span>mini<span class="auth-wordmark-separator">/</span>erp</span></div>
+      <div class="auth-story">
+        <p class="eyebrow">Your operations workspace</p>
+        <h1>Make work<br /><em>flow better.</em></h1>
+        <p>Bring sales, purchasing, inventory, and billing into one connected workspace.</p>
+        <div class="auth-flow" aria-label="Connected operations: sales, stock, and billing">
+          <span><b>01</b> Sales orders</span><span><b>02</b> Stock &amp; purchasing</span><span><b>03</b> Invoices</span>
+        </div>
+      </div>
+      <p class="auth-intro-foot">One place for the work behind every order.</p>
+    </div>
+    <section class="panel auth-panel" aria-labelledby="auth-title">
+      <div class="auth-form-heading"><p class="eyebrow">Get started</p><h2 id="auth-title">Create an account</h2><p>Enter your details. An administrator will approve access to this workspace.</p></div>
+      <form action="/signup" method="post">
+        <%- include('partials/csrf') %>
+        <div><label for="name">Full name</label><input type="text" id="name" name="name" value="<%= signupDraft.name %>" required autocomplete="name" <% if (signupFieldErrors.name) { %>aria-invalid="true" aria-describedby="signup-name-error" autofocus<% } %> /><% if (signupFieldErrors.name) { %><p class="field-error" id="signup-name-error"><%= signupFieldErrors.name %></p><% } %></div>
+        <div><label for="email">Work email</label><input type="email" id="email" name="email" value="<%= signupDraft.email %>" required autocomplete="email" <% if (signupFieldErrors.email) { %>aria-invalid="true" aria-describedby="signup-email-error" <% if (!signupFieldErrors.name) { %>autofocus<% } %><% } %> /><% if (signupFieldErrors.email) { %><p class="field-error" id="signup-email-error"><%= signupFieldErrors.email %></p><% } %></div>
+        <div><label for="password">Password</label><input type="password" id="password" name="password" required minlength="12" maxlength="72" autocomplete="new-password" <% if (signupFieldErrors.password) { %>aria-invalid="true" aria-describedby="signup-password-error"<% } %> /><p class="helper">Use at least 12 characters and keep it within 72 bytes.</p><% if (signupFieldErrors.password) { %><p class="field-error" id="signup-password-error"><%= signupFieldErrors.password %></p><% } %></div>
+        <div><label for="confirmPassword">Confirm password</label><input type="password" id="confirmPassword" name="confirmPassword" required minlength="8" autocomplete="new-password" <% if (signupFieldErrors.confirmPassword) { %>aria-invalid="true" aria-describedby="signup-confirm-error"<% } %> /><% if (signupFieldErrors.confirmPassword) { %><p class="field-error" id="signup-confirm-error"><%= signupFieldErrors.confirmPassword %></p><% } %></div>
+        <button type="submit">Create account <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="auth-switch">Already have an account? <a href="/login">Sign in</a></p>
+    </section>
+  </section>
+<%- include('partials/footer') %>

@@ -1,11 +1,49 @@
 <%- include('../partials/header') %>
-  <section class="page-heading"><div><p class="eyebrow">Procure to stock</p><h1>New purchase order</h1><p>Add up to three distinct products. Costs are captured as a historical snapshot.</p></div></section>
-  <% if (!suppliers.length || !products.length) { %><div class="flash" role="alert">You need at least one supplier and one product before creating a purchase order.</div><% } %>
-  <div class="panel" style="max-width:850px"><form class="line-items" action="/purchase-orders" method="post" data-testid="purchase-order-form">
-    <div><label for="supplierId">Supplier</label><select id="supplierId" name="supplierId" required><option value="">Select a supplier</option><% suppliers.forEach(function (supplier) { %><option value="<%= supplier.id %>"><%= supplier.name %></option><% }) %></select><p class="helper">Missing a vendor? <a href="/suppliers/new">Add a supplier</a>.</p></div>
-    <fieldset><legend>Products to purchase</legend>
-      <% [0, 1, 2].forEach(function (i) { %><div class="line-item" data-testid="purchase-order-line"><div><label for="po-product-<%= i %>">Product <%= i + 1 %></label><select id="po-product-<%= i %>" name="items[<%= i %>][productId]" <%= i === 0 ? 'required' : '' %>><option value=""><%= i === 0 ? 'Select a product' : 'Optional' %></option><% products.forEach(function (product) { %><option value="<%= product.id %>"><%= product.name %> (<%= product.sku %>)</option><% }) %></select></div><div><label for="po-quantity-<%= i %>">Quantity</label><input type="number" id="po-quantity-<%= i %>" name="items[<%= i %>][quantity]" min="1" <%= i === 0 ? 'required' : '' %> /></div><div><label for="po-cost-<%= i %>">Unit cost (cents)</label><input type="number" id="po-cost-<%= i %>" name="items[<%= i %>][unitCostCents]" min="0" <%= i === 0 ? 'required' : '' %> /></div></div><% }) %>
-    </fieldset>
-    <div class="form-actions"><button type="submit" <%= !suppliers.length || !products.length ? 'disabled' : '' %>>Create draft</button><a class="button ghost" href="/purchase-orders">Cancel</a></div>
-  </form></div>
+  <section class="page-heading"><div><p class="eyebrow">Purchasing / procure to stock</p><h1>New purchase order</h1><p>Add the products you need; unit costs are saved with this order.</p></div><a class="button ghost" href="/purchase-orders">Back to purchase orders</a></section>
+  <% if (!suppliers.length || !products.length) { %>
+    <div class="flash" role="alert">Before creating a purchase order, <% if (!suppliers.length) { %><a href="/suppliers/new">add a supplier</a><% } %><% if (!suppliers.length && !products.length) { %> and <% } %><% if (!products.length) { %><a href="/products/new">add a product</a><% } %>.</div>
+  <% } %>
+  <form class="purchase-composer" action="/purchase-orders" method="post" data-testid="purchase-order-form" data-purchase-order-form>
+    <%- include('../partials/csrf') %>
+    <div class="purchase-entry">
+      <section class="panel purchase-order-section">
+        <div class="panel-heading"><div><p class="eyebrow">01 / supplier</p><h2>Supplier account</h2></div><span class="section-note">Required</span></div>
+        <label class="field-label" for="supplierId">Supplier</label><select id="supplierId" name="supplierId" required data-purchase-supplier><option value="">Select a supplier</option><% suppliers.forEach(function (supplier) { %><option value="<%= supplier.id %>" <% if (typeof selectedSupplierId !== 'undefined' && selectedSupplierId === supplier.id) { %>selected<% } %>><%= supplier.name %></option><% }) %></select><p class="helper">Missing a vendor? <a href="/suppliers/new">Add a supplier</a>.</p>
+      </section>
+      <section class="panel purchase-order-section">
+        <div class="panel-heading"><div><p class="eyebrow">02 / line items</p><h2>Products and unit costs</h2></div></div>
+          <div class="purchase-lines-toolbar"><p class="helper">Up to three distinct products. Enter each supplier unit cost in dollars.</p><button class="button secondary" type="button" data-add-purchase-line>+ Add product</button></div>
+          <div data-purchase-lines>
+            <% draftItems.forEach(function (item, index) { %>
+            <div class="line-item" data-testid="purchase-order-line">
+              <span class="purchase-line-number" data-purchase-line-number>Line <%= String(index + 1).padStart(2, '0') %></span>
+              <div><label for="po-product-<%= index %>">Product</label><select id="po-product-<%= index %>" name="items[<%= index %>][productId]" data-purchase-product required><option value="">Select a product</option><% products.forEach(function (product) { %><option value="<%= product.id %>" <%= item.productId === product.id ? 'selected' : '' %>><%= product.name %> (<%= product.sku %>)</option><% }) %></select></div>
+              <div><label for="po-quantity-<%= index %>">Quantity</label><input type="number" id="po-quantity-<%= index %>" name="items[<%= index %>][quantity]" min="1" step="1" value="<%= item.quantity %>" data-purchase-quantity required /></div>
+              <div><label for="po-cost-<%= index %>">Unit cost ($)</label><input type="text" id="po-cost-<%= index %>" name="items[<%= index %>][unitCostDollars]" inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" value="<%= item.unitCostDollars %>" placeholder="0.00" data-purchase-cost required /></div>
+              <p class="purchase-line-message" data-purchase-line-message role="status" hidden></p>
+              <div class="purchase-line-amount"><span>Line estimate</span><strong data-purchase-line-total>—</strong></div>
+              <% if (index > 0) { %><button class="button ghost purchase-line-remove" type="button" data-remove-purchase-line>Remove line</button><% } %>
+            </div>
+            <% }) %>
+          </div>
+          <template data-purchase-line-template><div class="line-item" data-testid="purchase-order-line">
+            <span class="purchase-line-number" data-purchase-line-number></span>
+            <div><label>Product</label><select name="items[__INDEX__][productId]" data-purchase-product required><option value="">Select a product</option><% products.forEach(function (product) { %><option value="<%= product.id %>"><%= product.name %> (<%= product.sku %>)</option><% }) %></select></div>
+            <div><label>Quantity</label><input type="number" name="items[__INDEX__][quantity]" min="1" step="1" data-purchase-quantity required /></div>
+            <div><label>Unit cost ($)</label><input type="text" name="items[__INDEX__][unitCostDollars]" inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" placeholder="0.00" data-purchase-cost required /></div>
+            <p class="purchase-line-message" data-purchase-line-message role="status" hidden></p>
+            <div class="purchase-line-amount"><span>Line estimate</span><strong data-purchase-line-total>—</strong></div>
+            <button class="button ghost purchase-line-remove" type="button" data-remove-purchase-line>Remove line</button>
+          </div></template>
+      </section>
+    </div>
+    <aside class="panel purchase-summary"><p class="eyebrow">Commitment estimate</p><h2>Review</h2>
+      <div class="summary-customer"><span class="stat-label">Supplier</span><strong data-purchase-summary-supplier>Not selected</strong></div>
+      <div class="summary-total"><span>Estimated purchase total</span><strong data-purchase-summary-total aria-live="polite" aria-atomic="true">$0.00</strong></div>
+      <div class="summary-meta"><span>Products</span><strong data-purchase-summary-lines>0</strong><span>Total units</span><strong data-purchase-summary-units>0</strong></div>
+      <p class="section-note">The estimate uses the unit costs entered here. Final values are validated and saved by the server.</p>
+      <button class="button order-submit" type="submit" <%= !suppliers.length || !products.length ? 'disabled' : '' %>>Create draft</button>
+      <a class="summary-cancel" href="/purchase-orders">Cancel</a>
+    </aside>
+  </form>
 <%- include('../partials/footer') %>

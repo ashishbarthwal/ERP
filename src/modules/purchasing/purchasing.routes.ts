@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth, requirePermission } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import {
   cancelPurchaseOrder,
@@ -9,7 +9,7 @@ import {
   receivePurchaseOrder,
   submitPurchaseOrder,
 } from './purchasing.service';
-import { createPurchaseOrderSchema } from './purchasing.types';
+import { createPurchaseOrderSchema, idempotencyKeySchema, receivePurchaseOrderSchema } from './purchasing.types';
 
 export const purchasingRouter = Router();
 purchasingRouter.use(requireAuth);
@@ -21,9 +21,10 @@ purchasingRouter.get(
 
 purchasingRouter.post(
   '/',
+  requirePermission('purchases.write'),
   asyncHandler(async (req, res) => {
     const input = createPurchaseOrderSchema.parse(req.body);
-    res.status(201).json(await createPurchaseOrder(input));
+    res.status(201).json(await createPurchaseOrder(input, req.user!.userId));
   }),
 );
 
@@ -34,16 +35,24 @@ purchasingRouter.get(
 
 purchasingRouter.post(
   '/:id/submit',
-  asyncHandler(async (req, res) => res.json(await submitPurchaseOrder(req.params.id))),
+  requirePermission('purchases.write'),
+  asyncHandler(async (req, res) => res.json(await submitPurchaseOrder(req.params.id, req.user!.userId))),
 );
 
 purchasingRouter.post(
   '/:id/receive',
-  asyncHandler(async (req, res) => res.json(await receivePurchaseOrder(req.params.id))),
+  requirePermission('purchases.receive'),
+  asyncHandler(async (req, res) => {
+    const rawKey = req.get('Idempotency-Key') ?? req.body?.idempotencyKey;
+    const input = req.body?.items === undefined ? undefined : receivePurchaseOrderSchema.parse({ items: req.body.items });
+    const key = input || rawKey !== undefined ? idempotencyKeySchema.parse(rawKey) : undefined;
+    res.json(await receivePurchaseOrder(req.params.id, req.user!.userId, key, input));
+  }),
 );
 
 purchasingRouter.post(
   '/:id/cancel',
-  asyncHandler(async (req, res) => res.json(await cancelPurchaseOrder(req.params.id))),
+  requirePermission('purchases.write'),
+  asyncHandler(async (req, res) => res.json(await cancelPurchaseOrder(req.params.id, req.user!.userId))),
 );
 
