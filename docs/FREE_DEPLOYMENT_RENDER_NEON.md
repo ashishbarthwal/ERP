@@ -318,10 +318,16 @@ live-business readiness sign-off.
   the project's endpoint before creating the initial administrator and
   synthetic demo records. The administrator credentials are saved outside
   the repository in `%LOCALAPPDATA%\mini-erp-deploy\ledgernest-login.txt`.
-- The previous full GitHub contract run passed before the ERP repository was
-  made public. New runs cannot resolve the private test-framework action;
-  access must be redesigned without publishing that separate repository.
-  This is an unresolved CI integration gate, not a passing hosted check.
+- After the ERP repository became public, GitHub could not resolve the private
+  test-framework action. CI now checks out the separate framework at reviewed
+  commit `22563821dedc3123f5539a7ba30a069f0cf3fcc0` and invokes it as a local action.
+  Access uses a read-only deploy key for that framework repository, stored as
+  the ERP Actions secret `ERP_CONTRACT_RUNNER_SSH_KEY`; checkout does not persist
+  credentials. Fork pull requests cannot run this secret-bearing job. Both
+  `main` and the Render release branch trigger CI. No personal token or hosted
+  application/database credentials are required by the CI PostgreSQL target.
+  To rotate access, replace the framework deploy key and the matching ERP
+  secret. Do not commit the private key or publish the separate framework.
 - For SMTP-enabled deployment, login/key and a verified sender must be populated with real values.
   An external preparation helper audits every required field and writes a
   Render import file only when all startup checks pass; it never logs secrets.

@@ -1,9 +1,9 @@
 name: Change-aware ERP tests
 on:
   push:
-    branches: [main]
+    branches: [main, ui/full-site-polish-2026-09-29]
   pull_request:
-    branches: [main]
+    branches: [main, ui/full-site-polish-2026-09-29]
   workflow_dispatch:
     inputs:
       full:
@@ -50,12 +50,20 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Check out the private reviewed contract runner
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: ashishbarthwal/ai-self-healing-test-automation-framework
+          ref: 22563821dedc3123f5539a7ba30a069f0cf3fcc0
+          path: contract-runner
+          ssh-key: ${{ secrets.ERP_CONTRACT_RUNNER_SSH_KEY }}
+          persist-credentials: false
       - name: Build immutable deployment image
         run: docker build --build-arg "VCS_REF=${{ github.event.pull_request.head.sha || github.sha }}" --tag "mini-erp:${{ github.event.pull_request.head.sha || github.sha }}" .
         working-directory: ${{ github.workspace }}/erp
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a CI-verified framework commit.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@22563821dedc3123f5539a7ba30a069f0cf3fcc0
+        uses: ./contract-runner
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
