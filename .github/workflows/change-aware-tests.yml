@@ -55,7 +55,7 @@ jobs:
         working-directory: ${{ github.workspace }}/erp
       - name: Analyze changes and run generated contracts
         # Reviewed PostgreSQL contract runner pinned to a CI-verified framework commit.
-        uses: ashishbarthwal/ai-self-healing-test-automation-framework@96f8d82fd24cde85ece2795cf4ccb977f04a6778
+        uses: ashishbarthwal/ai-self-healing-test-automation-framework@22563821dedc3123f5539a7ba30a069f0cf3fcc0
         with:
           erp-path: ${{ github.workspace }}/erp
           base-sha: ${{ github.event.pull_request.base.sha || github.event.before }}
