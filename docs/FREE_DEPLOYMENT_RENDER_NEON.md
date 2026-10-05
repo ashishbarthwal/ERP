@@ -320,7 +320,7 @@ live-business readiness sign-off.
   the repository in `%LOCALAPPDATA%\mini-erp-deploy\ledgernest-login.txt`.
 - After the ERP repository became public, GitHub could not resolve the private
   test-framework action. CI now checks out the separate framework at reviewed
-  commit `22563821dedc3123f5539a7ba30a069f0cf3fcc0` and invokes it as a local action.
+  commit `fee2389edbf21d5c41eebec93da7857f1027a024` and invokes it as a local action.
   Access uses a read-only deploy key for that framework repository, stored as
   the ERP Actions secret `ERP_CONTRACT_RUNNER_SSH_KEY`; checkout does not persist
   credentials. Fork pull requests cannot run this secret-bearing job. Both

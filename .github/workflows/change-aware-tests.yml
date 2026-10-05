@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           repository: ashishbarthwal/ai-self-healing-test-automation-framework
-          ref: 22563821dedc3123f5539a7ba30a069f0cf3fcc0
+          ref: fee2389edbf21d5c41eebec93da7857f1027a024
           path: contract-runner
           ssh-key: ${{ secrets.ERP_CONTRACT_RUNNER_SSH_KEY }}
           persist-credentials: false
