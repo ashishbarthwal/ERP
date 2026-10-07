@@ -1,9 +1,9 @@
 name: Change-aware ERP tests
 on:
   push:
-    branches: [main, ui/full-site-polish-2026-09-29]
+    branches: ['**']
   pull_request:
-    branches: [main, ui/full-site-polish-2026-09-29]
+    branches: ['**']
   workflow_dispatch:
     inputs:
       full:
@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           repository: ashishbarthwal/ai-self-healing-test-automation-framework
-          ref: 6a71172a9a8665515aee6f6c101214f1004a2383
+          ref: 390df78a4a509fa59a5a38824ba0b4711a96c591
           path: contract-runner
           ssh-key: ${{ secrets.ERP_CONTRACT_RUNNER_SSH_KEY }}
           persist-credentials: false
