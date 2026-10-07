@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           repository: ashishbarthwal/ai-self-healing-test-automation-framework
-          ref: fee2389edbf21d5c41eebec93da7857f1027a024
+          ref: 2654402c39e54516c64d5a816d0a43860a1ef47f
           path: contract-runner
           ssh-key: ${{ secrets.ERP_CONTRACT_RUNNER_SSH_KEY }}
           persist-credentials: false
@@ -62,7 +62,7 @@ jobs:
         run: docker build --build-arg "VCS_REF=${{ github.event.pull_request.head.sha || github.sha }}" --tag "mini-erp:${{ github.event.pull_request.head.sha || github.sha }}" .
         working-directory: ${{ github.workspace }}/erp
       - name: Analyze changes and run generated contracts
-        # Reviewed PostgreSQL contract runner pinned to a CI-verified framework commit.
+        # Reviewed PostgreSQL contract runner pinned to an exact framework commit.
         uses: ./contract-runner
         with:
           erp-path: ${{ github.workspace }}/erp
